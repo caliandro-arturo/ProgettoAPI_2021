@@ -17,7 +17,7 @@ int actualRankingSize = 0;
  */
 typedef struct treeNode {
     int graphId;
-    int key;
+    unsigned long long int key;
     bool isRed;
     struct treeNode *father;
     struct treeNode *left;
@@ -310,13 +310,17 @@ void RBDelete(rankingNode *node) {
 }
 
 /**
- * Reads commands from input.
+ * Reads a graph.
  */
-void inputHandler() {
-    char command[13];
-    while (scanf("%s", command)) {
+void parseGraph() {
+    /*printf("I should parse a graph here\n");*/
+}
 
-    }
+/**
+ * Prints out the ranking.
+ */
+void printRanking() {
+    /*printf("I should print the ranking here\n");*/
 }
 
 /**
@@ -324,9 +328,28 @@ void inputHandler() {
  */
 void initialize() {
     scanf("%d %d", &graphDimension, &rankingLength);
+    /* removes the '\n' from the buffer. */
+    getc(stdin);
+}
+
+/**
+ * Reads commands from input.
+ */
+void inputHandler() {
+    char command[15];
+    do {
+        fgets(command, 15, stdin);
+        command[strcspn(command, "\n")] = '\0';
+        if (!strcmp("AggiungiGrafo", command)) {
+            parseGraph();
+        } else if (!strcmp("TopK", command))
+            printRanking();
+    } while (strcmp("", command) != 0);
+    /*printf("Closing the program...");*/
 }
 
 int main() {
+    setbuf(stdout, NULL);
     initialize();
     inputHandler();
     return 0;
