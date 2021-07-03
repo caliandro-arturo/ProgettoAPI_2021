@@ -12,6 +12,9 @@ int graphDimension;
 int rankingLength;
 int actualRankingSize = 0;
 
+/**
+ * Node struct for RB tree implementation for ranking.
+ */
 typedef struct treeNode {
     int graphId;
     int key;
@@ -29,29 +32,44 @@ typedef struct treeNode {
     int id;
 } graph;*/
 
-/* Node that represents a null value. */
+/**
+ * Node that represents a null value.
+ */
 rankingNode *nil;
-/* Node that represents the root of the ranking tree. */
+/**
+ * Node that represents the root of the ranking tree.
+ */
 rankingNode *root;
 
-/* Returns the lowest value. */
+/**
+ * Returns the lowest value.
+ * @param val1 the first value
+ * @param val2 the second value
+ * @return the lowest value
+ */
 int minInt(int val1, int val2) {
     if (val1 <= val2)
         return val1;
     else return val2;
 }
 
-/* Returns the higher value. */
+/**
+ * Returns the higher value.
+ * @param val1 the first value
+ * @param val2 the second value
+ * @return the higher value
+ */
 int maxInt(int val1, int val2) {
     if (val1 >= val2)
         return val1;
     else return val2;
 }
 
-/* Returns the node containing the required key.
- *
- * T: the father to consider to do the research
- * key: the value that identifies the searched node */
+/**
+ * Returns the node containing the required key.
+ * @param T the father to consider to do the research
+ * @param key the value that identifies the searched node
+ */
 rankingNode *search(rankingNode *T, int key) {
     if (T == nil || T->key == key)
         return T;
@@ -60,7 +78,11 @@ rankingNode *search(rankingNode *T, int key) {
     else return search(T->left, key);
 }
 
-/* Returns the node with the lowest key, starting from a specified node. */
+/**
+ * Returns the node with the lowest key, starting from a specified node.
+ * @param subTree the root of the sub tree to use to start the research
+ * @return the the node with the lowest key in the sub tree
+ */
 rankingNode *minNode(rankingNode *subTree) {
     rankingNode *current = subTree;
     while (current->left != nil)
@@ -68,7 +90,11 @@ rankingNode *minNode(rankingNode *subTree) {
     return current;
 }
 
-/* Returns the node with the lowest key value that is higher than the node passed as parameter. */
+/**
+ * Returns the node with the lowest key value that is higher than the node passed as parameter.
+ * @param startNode the node to use as reference
+ * @return the next node
+ */
 rankingNode *successor(rankingNode *startNode) {
     if (startNode == nil)
         return nil;
@@ -82,8 +108,11 @@ rankingNode *successor(rankingNode *startNode) {
     return startNodeFather;
 }
 
-/* Applies a counterclockwise rotation between a node and his right son.
- * The son becomes the father of the node, and the node becomes his left son. */
+/**
+ * Applies a counterclockwise rotation between a node and his right son.
+ * The son becomes the father of the node, and the node becomes his left son.
+ * @param toRotate the father
+ */
 void leftRotate(rankingNode *toRotate) {
     rankingNode *rightSon = toRotate->right;
     toRotate->right = rightSon->left;
@@ -99,8 +128,11 @@ void leftRotate(rankingNode *toRotate) {
     toRotate->father = rightSon;
 }
 
-/* Applies a clockwise rotation between a node and his left son.
- * The son becomes the father of the node, and the node becomes his right son. */
+/**
+ * Applies a clockwise rotation between a node and his left son.
+ * The son becomes the father of the node, and the node becomes his right son.
+ * @param toRotate the father
+ */
 void rightRotate(rankingNode *toRotate) {
     rankingNode *leftSon = toRotate->left;
     toRotate->left = leftSon->right;
@@ -116,7 +148,10 @@ void rightRotate(rankingNode *toRotate) {
     toRotate->father = leftSon;
 }
 
-/* Fixes the RB Tree property after the specified node has been inserted. */
+/**
+ * Fixes the RB Tree property after the specified node has been inserted.
+ * @param newNode the new node added into the tree
+ */
 void RBInsertFixup(rankingNode *newNode) {
     while (newNode != root && newNode->father->isRed) {
         rankingNode *newNodeUncle;
@@ -166,7 +201,10 @@ void RBInsertFixup(rankingNode *newNode) {
     root->isRed = false;
 }
 
-/* Inserts a new node inside the RB Tree. */
+/**
+ * Inserts a new node inside the RB Tree.
+ * @param toInsert the node to add
+ */
 void RBInsert(rankingNode *toInsert) {
     rankingNode *previousNode = nil;
     rankingNode *currentNode = root;
@@ -188,7 +226,10 @@ void RBInsert(rankingNode *toInsert) {
     RBInsertFixup(toInsert);
 }
 
-/* Auxiliary method that fixes the RB tree after a deletion of a node, if the the deleted node was black. */
+/**
+ * Auxiliary method that fixes the RB tree after a deletion of a node, if the the deleted node was black.
+ * @param substitute the node that has taken the place of the old removed node
+ */
 void RBDeleteFixup(rankingNode *substitute) {
     rankingNode *w;
     while (substitute != root && !substitute->isRed) {
@@ -241,7 +282,10 @@ void RBDeleteFixup(rankingNode *substitute) {
     substitute->isRed = false;
 }
 
-/* Removes a node from the RB Tree. */
+/**
+ * Removes a node from the RB Tree.
+ * @param node the node to remove
+ */
 void RBDelete(rankingNode *node) {
     rankingNode *toDelete, *subTree;
     if (node->left == nil || node->right == nil)
@@ -265,10 +309,19 @@ void RBDelete(rankingNode *node) {
         RBDeleteFixup(node);
 }
 
+/**
+ * Reads commands from input.
+ */
 void inputHandler() {
+    char command[13];
+    while (scanf("%s", command)) {
+
+    }
 }
 
-/* Initializes the program, setting dimension of graphs to classify and length of the ranking. */
+/**
+ * Initializes the program, setting dimension of graphs to classify and length of the ranking.
+ */
 void initialize() {
     scanf("%d %d", &graphDimension, &rankingLength);
 }
