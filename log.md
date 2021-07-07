@@ -97,3 +97,9 @@ Ergo, per ora mi limito a pensare a Dijkstra.
 Un'altra idea è quella di mettere il valore peggiore inserito in classifica direttamente in una variabile di controllo,
 in modo tale che qualora la somma di un nuovo grafo dovesse essere peggiore dell'ultima e la classifica dovesse già
 essere piena, interromperei subito il calcolo della somma dei nodi.
+
+---
+
+Altra ottimizzazione: salvare la stringa stampata da TopK e un booleano che verifica se la classifica sia stata cambiata
+nel frattempo o meno. Questo consente di non perdere tempo quando viene chiamato spesso TopK senza che sia cambiato
+nulla.
