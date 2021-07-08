@@ -103,3 +103,21 @@ essere piena, interromperei subito il calcolo della somma dei nodi.
 Altra ottimizzazione: salvare la stringa stampata da TopK e un booleano che verifica se la classifica sia stata cambiata
 nel frattempo o meno. Questo consente di non perdere tempo quando viene chiamato spesso TopK senza che sia cambiato
 nulla.
+
+---
+
+## 7 Luglio
+
+### Idea attuale del progetto
+
+Ho finito di implementare l'heap di Fibonacci come struttura di supporto per Dijkstra, che continua a rimanere la
+principale ipotesi algoritmica.
+
+Ora mi accorgo di un nuovo problema: come determinare i successori di un nodo.
+
+In verità questo problema si risolve in due modi, data la struttura che sceglierò per implementare il grafo ( o una sua
+parte):
+
+- matrice di adiacenza: la posizione degli archi > 0 è l'insieme dei successori;
+- lista di adiacenza: ogni elemento dell'array è una lista che contiene già i successori di un nodo, sarebbe immediato.
+

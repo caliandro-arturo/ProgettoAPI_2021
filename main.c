@@ -7,12 +7,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#define INFINITY -2
 
 int graphDimension;
 int rankingLength;
 int actualRankingSize = 0;
 int graphIndex = 0;
+const unsigned long long INFINITY = 0 - 1;
 
 /**
  * Returns the lowest value.
@@ -317,13 +317,15 @@ void RBDelete(rankingNode *node) {
 //----------------------------------------------------------------------------------------------------------------------
 
 typedef struct heap_node {
-    int key;
+    unsigned long long int key;
+    int graphNode;
     int degree;
     struct heap_node *leftSibling;
     struct heap_node *rightSibling;
     struct heap_node *parent;
     struct heap_node *child;
     bool mark;
+    bool visited;
 } heapNode;
 
 /**
@@ -352,17 +354,20 @@ fibonacciHeap *makeFibHeap() {
 /**
  * Creates a node with the specified key as attribute.
  * @param value the key to use as value
+ * @param graphNode the graph node index
  * @return a new node containing the indicated key
  */
-heapNode *fibHeapCreateNode(int value) {
+heapNode *fibHeapCreateNode(unsigned long long int value, int graphNode) {
     heapNode *newNode = (heapNode *) malloc(sizeof(heapNode));
     newNode->key = value;
+    newNode->graphNode = graphNode;
     newNode->degree = 0;
     newNode->parent = heapNil;
     newNode->child = heapNil;
     newNode->leftSibling = newNode;
     newNode->rightSibling = newNode;
     newNode->mark = false;
+    newNode->visited = false;
     return newNode;
 }
 
@@ -378,7 +383,7 @@ void fibHeapInsert(fibonacciHeap *H, heapNode *newNode) {
         newNode->rightSibling = H->min;
         newNode->leftSibling = H->min->leftSibling;
         H->min->leftSibling = newNode;
-        if (newNode->key < H->min->key)
+        if (newNode->key != INFINITY && newNode->key < H->min->key)
             H->min = newNode;
     } else
         H->min = newNode;
@@ -418,7 +423,7 @@ fibonacciHeap *fibHeapUnion(fibonacciHeap *H1, fibonacciHeap *H2) {
     H2->min->leftSibling = H->min->leftSibling;
     H->min->leftSibling = H2->min;
     H2->min->leftSibling->rightSibling = H->min;
-    if (H1->min == heapNil || (H2->min != heapNil && H2->min->key < H1->min->key))
+    if (H1->min == heapNil || (H2->min != heapNil && H2->min->key != INFINITY && H2->min->key < H1->min->key))
         H->min = H2->min;
     H->n = H1->n + H2->n;
     free(H1);
@@ -427,12 +432,11 @@ fibonacciHeap *fibHeapUnion(fibonacciHeap *H1, fibonacciHeap *H2) {
 }
 
 /**
- * Removes a child from the parent child list and adds it to the H root list.
- * @param H the fibonacci Heap
+ * Removes a child from the parent child list and adds it to the parent root list.
  * @param child the child to insert into H root list
  * @param parent the parent of the child
  */
-void fibHeapLink(fibonacciHeap *H, heapNode *child, heapNode *parent) {
+void fibHeapLink(heapNode *child, heapNode *parent) {
     // removes the child from the H root list
     child->rightSibling->leftSibling = child->leftSibling;
     child->leftSibling->rightSibling = child->rightSibling;
@@ -446,7 +450,7 @@ void fibHeapLink(fibonacciHeap *H, heapNode *child, heapNode *parent) {
         child->leftSibling = parent->child->leftSibling;
         parent->child->leftSibling->rightSibling = child;
         parent->child->leftSibling = child;
-        if (child->key < parent->child->key)
+        if (child->key != INFINITY && child->key < parent->child->key)
             parent->child = child;
     }
     parent->degree++;
@@ -477,22 +481,34 @@ void consolidate(fibonacciHeap *H) {
     }
     int tempDegree;
     heapNode *iterator = H->min;
+    int hRootListCounter = 0;
     do {
+        iterator->visited = true;
+        hRootListCounter++;
+        iterator = iterator->rightSibling;
+    } while (iterator != H->min);
+    do {
+        if (iterator->visited != true) {
+            iterator = iterator->rightSibling;
+            continue;
+        }
+        iterator->visited = false;
         tempDegree = iterator->degree;
         while (A[tempDegree] != heapNil) {
             heapNode *y = A[tempDegree];
-            if (iterator->key > y->key) {
+            if (y->key != INFINITY && iterator->key > y->key) {
                 heapNode *temp = iterator;
                 iterator = y;
                 y = temp;
             }
-            fibHeapLink(H, y, iterator);
+            fibHeapLink(y, iterator);
             A[tempDegree] = heapNil;
             tempDegree++;
         }
         A[tempDegree] = iterator;
+        hRootListCounter--;
         iterator = iterator->rightSibling;
-    } while (iterator != H->min);
+    } while (hRootListCounter > 0);
     H->min = heapNil;
     for (int i = 0; i < degree; i++) {
         if (A[i] != heapNil) {
@@ -506,7 +522,7 @@ void consolidate(fibonacciHeap *H) {
                 A[i]->rightSibling = H->min;
                 A[i]->leftSibling = H->min->leftSibling;
                 H->min->leftSibling = A[i];
-                if (A[i]->key < H->min->key) {
+                if (A[i]->key != INFINITY && A[i]->key < H->min->key) {
                     H->min = A[i];
                 }
             }
@@ -582,14 +598,14 @@ void cut(fibonacciHeap *H, heapNode *nodeToDecrease, heapNode *parent) {
  * @param parent the parent of the children to cut
  */
 void cascadingCut(fibonacciHeap *H, heapNode *parent) {
-    heapNode *aux;
-    aux = parent->parent;
-    if (aux != heapNil) {
+    heapNode *grandparent;
+    grandparent = parent->parent;
+    if (grandparent != heapNil) {
         if (parent->mark == false) {
             parent->mark = true;
         } else {
-            cut(H, parent, aux);
-            cascadingCut(H, aux);
+            cut(H, parent, grandparent);
+            cascadingCut(H, grandparent);
         }
     }
 }
@@ -600,26 +616,32 @@ void cascadingCut(fibonacciHeap *H, heapNode *parent) {
  * @param nodeToDecrease the node to change
  * @param newKey the new value of the key
  */
-void fibHeapDecreaseKey(fibonacciHeap *H, heapNode *nodeToDecrease, int newKey) {
+void fibHeapDecreaseKey(fibonacciHeap *H, heapNode *nodeToDecrease, unsigned long long int newKey) {
     if (nodeToDecrease == heapNil) {
         /*printf("Node is not in the heap");*/
         return;
-    } else {
-        if (nodeToDecrease->key < newKey) {
-            /*printf("n Invalid new key for decrease key operation n ");*/
-            return;
-        } else {
-            nodeToDecrease->key = newKey;
-            heapNode *parentNode = nodeToDecrease->parent;
-            if ((parentNode != heapNil) && (nodeToDecrease->key < parentNode->key)) {
-                cut(H, nodeToDecrease, parentNode);
-                cascadingCut(H, parentNode);
-            }
-            if (nodeToDecrease->key < H->min->key) {
-                H->min = nodeToDecrease;
-            }
-        }
     }
+    nodeToDecrease->key = newKey;
+    heapNode *parentNode = nodeToDecrease->parent;
+    if ((parentNode != heapNil) && (nodeToDecrease->key != INFINITY && nodeToDecrease->key < parentNode->key)) {
+        cut(H, nodeToDecrease, parentNode);
+        cascadingCut(H, parentNode);
+    }
+    if (nodeToDecrease->key != INFINITY && nodeToDecrease->key < H->min->key) {
+        H->min = nodeToDecrease;
+    }
+}
+
+void fibHeapFindNodeAndDecreaseKey(fibonacciHeap *H, heapNode *startNode, int graph, unsigned long long int newKey) {
+    startNode->visited = true;
+    if (startNode->graphNode == graph) {
+        fibHeapDecreaseKey(H, startNode, newKey);
+    } else if (startNode->child != heapNil) {
+        fibHeapFindNodeAndDecreaseKey(H, startNode->child, graph, newKey);
+    } else if (!startNode->rightSibling->visited) {
+        fibHeapFindNodeAndDecreaseKey(H, startNode->rightSibling, graph, newKey);
+    }
+    startNode->visited = false;
 }
 
 /**
@@ -635,24 +657,51 @@ void deleteNode(fibonacciHeap *H, heapNode *toDelete) {
 //
 //----------------------------------------------------------------------------------------------------------------------
 
-void dijkstraQueue(unsigned long int adjacencyMap[][graphDimension]) {
+void dijkstraFromZero(unsigned long int adjacencyMap[][graphDimension],
+                      unsigned long long int distance[graphDimension],
+                      int previous[graphDimension]) {
     fibonacciHeap *queue = makeFibHeap();
-    unsigned long long int distance[graphDimension - 1];
-    unsigned int previous[graphDimension - 1];
-    for (int i = 0; i < graphDimension - 1; i++) {
-        distance[i] = INFINITY;
+    unsigned long long int temp;
+    distance[0] = 0;
+    for (int i = 0; i < graphDimension; i++) {
+        if (i != 0)
+            distance[i] = INFINITY;
+        else
+            distance[i] = 0;
         previous[i] = -1;
-        heapNode *newNode = fibHeapCreateNode(INFINITY);
+        heapNode *newNode = fibHeapCreateNode(distance[i], i);
         fibHeapInsert(queue, newNode);
     }
-    while (queue->min == heapNil) {
+    while (queue->min != heapNil) {
         heapNode *current = fibHeapExtractMin(queue);
-        // other code here, starting from successor
+        for (int i = 0; i < graphDimension; i++) {
+            if (current->graphNode != i && adjacencyMap[current->graphNode][i] != 0) {
+                temp = current->key + adjacencyMap[current->graphNode][i];
+                if (distance[i] == INFINITY || distance[i] > temp) {
+                    distance[i] = temp;
+                    previous[i] = current->graphNode;
+                    fibHeapFindNodeAndDecreaseKey(queue, queue->min, i, temp);
+                }
+            }
+        }
+        free(current);
     }
+    free(queue);
+}
+
+unsigned long long int fromDijkstraToMetric(const unsigned long long int distance[graphDimension]) {
+    unsigned long long int totalDistance = 0;
+    for (int i = 1; i < graphDimension; ++i) {
+        totalDistance += distance[i];
+    }
+    return totalDistance;
 }
 
 unsigned long long int calcGraphMetric(unsigned long int adjacencyMap[][graphDimension]) {
-    return 0;
+    unsigned long long int distance[graphDimension];
+    int previous[graphDimension];
+    dijkstraFromZero(adjacencyMap, distance, previous);
+    return fromDijkstraToMetric(distance);
 }
 
 //
@@ -663,7 +712,7 @@ unsigned long long int calcGraphMetric(unsigned long int adjacencyMap[][graphDim
  * @return the number contained in the array, as an integer
  */
 unsigned long int parseInt(const char *number) {
-    return strtoul(number, NULL, 10);
+    return strtoull(number, NULL, 10);
 }
 
 /**
@@ -673,13 +722,15 @@ unsigned long int parseInt(const char *number) {
 void parseNextEdge(unsigned long int vertices[]) {
     int insertedNumbersPointer = 0;
     int insertedDigitsPointer = 0;
-    char numberDigits[10];
+    char numberDigits[11];
     char nextDigit;
     do {
         nextDigit = (char) getchar();
         if (nextDigit == ',' || nextDigit == '\n') {
+            numberDigits[insertedDigitsPointer] = '\0';
             vertices[insertedNumbersPointer] = parseInt(numberDigits);
             insertedDigitsPointer = 0;
+            insertedNumbersPointer++;
             if (nextDigit == '\n')
                 return;
         } else if (nextDigit != ' ') {
@@ -699,7 +750,8 @@ void analyzeGraph() {
     for (; i < graphDimension; i++) {
         parseNextEdge(adjacencyMap[i]);
     }
-    calcGraphMetric(adjacencyMap);
+    unsigned long long int result = calcGraphMetric(adjacencyMap);
+    printf("\nThe sum of shortest paths is: %llu\n\n", result);
 }
 
 /**
@@ -737,7 +789,7 @@ void inputHandler() {
 
 int main() {
     setbuf(stdout, NULL);
-    heapNil = fibHeapCreateNode(-1);
+    heapNil = fibHeapCreateNode(0, 0);
     heapNil->child = heapNil;
     initialize();
     inputHandler();
