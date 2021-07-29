@@ -657,7 +657,7 @@ void deleteNode(fibonacciHeap *H, heapNode *toDelete) {
 
 void addGraphIntoRanking(int graphToAdd, /*unsigned long long*/ int result) {
     if (actualRankingSize == rankingLength) {
-        if (result > worstMetricValue) {
+        if (result >= worstMetricValue) {
             return;
         } else {
             rankingNode *max = maxNode(treeRoot);
@@ -682,17 +682,6 @@ void addGraphIntoRanking(int graphToAdd, /*unsigned long long*/ int result) {
 void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
         /*unsigned long long*/ int distance[graphDimension],
                                         int previous[graphDimension]) {
-    bool zeroNodeIsDisconnected = true;
-    for (int i = 0; i < graphDimension; i++) {
-        if (adjacencyMap[0][i] != 0)
-            zeroNodeIsDisconnected = false;
-    }
-    if (zeroNodeIsDisconnected) {
-        for (int i = 0; i < graphDimension; i++) {
-            distance[i] = 0;
-        }
-        return;
-    }
     fibonacciHeap *queue = makeFibHeap();
     /*unsigned long long*/ int temp;
     bool visited[graphDimension];
@@ -811,9 +800,20 @@ void parseNextEdge(/*unsigned long*/ int vertices[], int vertexId) {
 void analyzeGraph() {
     /*printf("I should parse a graph here\n");*/
     /*unsigned long*/ int adjacencyMap[graphDimension][graphDimension];
-    int i = 0;
-    for (; i < graphDimension; i++) {
+    for (int i = 0; i < graphDimension; i++) {
         parseNextEdge(adjacencyMap[i], i);
+        if (i == 0) {
+            bool zeroNodeIsDisconnected = true;
+            for (int j = 0; j < graphDimension; j++) {
+                if (adjacencyMap[0][j] != 0)
+                    zeroNodeIsDisconnected = false;
+            }
+            if (zeroNodeIsDisconnected) {
+                addGraphIntoRanking(graphIndex, 0);
+                graphIndex++;
+                return;
+            }
+        }
     }
     /*unsigned long long*/ int result = calcGraphMetric(adjacencyMap);
     /*printf("\nThe sum of shortest paths is: %llu\n\n", result);*/
