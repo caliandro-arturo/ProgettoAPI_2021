@@ -121,3 +121,31 @@ parte):
 - matrice di adiacenza: la posizione degli archi > 0 è l'insieme dei successori;
 - lista di adiacenza: ogni elemento dell'array è una lista che contiene già i successori di un nodo, sarebbe immediato.
 
+---
+
+## 29 Luglio
+
+Il progetto funziona, ma è troppo lento.
+
+Il principale collo di bottiglia secondo callgrind è la lettura del grafo, quindi sostituirò strtoul con qualcosa di più
+efficiente.
+
+### Progressi
+
+- tutte le occorrenze di `unsigned long` e di `unsigned long long` sono state commentate: attualmente sembrano non
+  essere indispensabili;
+
+- `strtoul` è stata sostituita con una funzione banale che prende i numeri dell'array di char e li converte direttamente
+  in un numero;
+
+- i grafi in cui il nodo 0 non è connesso con nessun altro nodo non passano per Dijkstra, e lo bypassano impostando
+  manualmente la distanza = 0 per ogni nodo;
+
+- la scansione di grafi viene ottimizzata ignorando:
+  - i valori della diagonale;
+  - i valori della prima colonna (la stella entrante nel nodo 0);
+
+### Idee varie
+
+Un'ulteriore ottimizzazione consiste nello spostare il controllo di grafo non connesso nella fase di parsing del grafo
+piuttosto che in Dijkstra.

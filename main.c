@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 int graphDimension;
 int rankingLength;
@@ -681,6 +682,17 @@ void addGraphIntoRanking(int graphToAdd, /*unsigned long long*/ int result) {
 void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
         /*unsigned long long*/ int distance[graphDimension],
                                         int previous[graphDimension]) {
+    bool zeroNodeIsDisconnected = true;
+    for (int i = 0; i < graphDimension; i++) {
+        if (adjacencyMap[0][i] != 0)
+            zeroNodeIsDisconnected = false;
+    }
+    if (zeroNodeIsDisconnected) {
+        for (int i = 0; i < graphDimension; i++) {
+            distance[i] = 0;
+        }
+        return;
+    }
     fibonacciHeap *queue = makeFibHeap();
     /*unsigned long long*/ int temp;
     bool visited[graphDimension];
@@ -747,33 +759,48 @@ void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
  * @return the number contained in the array, as an integer
  */
 /*unsigned long*/ int parseInt(const char *number) {
-    return strtoul(number, NULL, 10);
+    int value = 0;
+    for (int i = 0; i < strlen(number); i++) {
+        value = 10 * value + (number[i] - 48);
+    }
+    return value;
 }
 
 /**
  * Parse the next edge and adds weights into the array passed as parameter.
  * @param vertices the array in which to put weights
  */
-void parseNextEdge(/*unsigned long*/ int vertices[]) {
+void parseNextEdge(/*unsigned long*/ int vertices[], int vertexId) {
     int insertedNumbersPointer = 0;
     int insertedDigitsPointer = 0;
     char numberDigits[11];
     char nextDigit;
     do {
-        nextDigit = (char) getchar_unlocked();
-        if (nextDigit == ',' || nextDigit == '\r' || nextDigit == '\n') {
+        if (insertedNumbersPointer == 0 || insertedNumbersPointer == vertexId) {
+            do {
+                nextDigit = (char) getchar_unlocked();
+            } while (isdigit(nextDigit));
+            vertices[insertedNumbersPointer] = 0;
+            insertedNumbersPointer++;
+        } else {
+            do {
+                nextDigit = (char) getchar_unlocked();
+                if (!isdigit(nextDigit))
+                    break;
+                else {
+                    numberDigits[insertedDigitsPointer] = nextDigit;
+                    insertedDigitsPointer++;
+                }
+            } while (1);
             numberDigits[insertedDigitsPointer] = '\0';
             vertices[insertedNumbersPointer] = parseInt(numberDigits);
             insertedDigitsPointer = 0;
             insertedNumbersPointer++;
-            if (nextDigit == '\r' || nextDigit == '\n') {
-                if (nextDigit == '\r')
-                    getchar_unlocked();
-                return;
-            }
-        } else if (nextDigit != ' ') {
-            numberDigits[insertedDigitsPointer] = nextDigit;
-            insertedDigitsPointer++;
+        }
+        if (nextDigit == '\r' || nextDigit == '\n') {
+            if (nextDigit == '\r')
+                getchar_unlocked();
+            return;
         }
     } while (1);
 }
@@ -786,7 +813,7 @@ void analyzeGraph() {
     /*unsigned long*/ int adjacencyMap[graphDimension][graphDimension];
     int i = 0;
     for (; i < graphDimension; i++) {
-        parseNextEdge(adjacencyMap[i]);
+        parseNextEdge(adjacencyMap[i], i);
     }
     /*unsigned long long*/ int result = calcGraphMetric(adjacencyMap);
     /*printf("\nThe sum of shortest paths is: %llu\n\n", result);*/
@@ -828,8 +855,8 @@ void initialize() {
     initialization = malloc(sizeof(char) * maxDim);
     charDim = getline(&initialization, &maxDim, stdin);
     if (charDim != 0) {
-        graphDimension = strtoull(initialization, &next, 10);
-        rankingLength = strtoull(next, NULL, 10);
+        graphDimension = strtol(initialization, &next, 10);
+        rankingLength = strtol(next, NULL, 10);
     }
     free(initialization);
 }
@@ -844,8 +871,12 @@ void inputHandler() {
     command = malloc(sizeof(char) * argumentDim);
     do {
         command[0] = '\0';
-        charDim = getline(&command, &argumentDim, stdin);
-        command[strcspn(command, "\n")] = '\0';
+        charDim = (int) getline(&command, &argumentDim, stdin);
+        charDim--;
+        command[charDim] = '\0';
+        charDim--;
+        if (command[charDim] == '\r')
+            command[charDim] = '\0';
         if (!strcmp("AggiungiGrafo", command)) {
             analyzeGraph();
         } else if (!strcmp("TopK", command))
