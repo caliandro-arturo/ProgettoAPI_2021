@@ -11,9 +11,13 @@
 int graphDimension;
 int rankingLength;
 int actualRankingSize = 0;
+int *lastRankingShot;
+bool rankingChanged;
+bool rankingLengthChanged;
+int count = 0;                      //to maintain the count of iterations in recursive functions
 /*unsigned long long*/ int worstMetricValue = 0;
 int graphIndex = 0;
-const /*unsigned long long*/ int INFINITY = 0 - 1;
+const /*unsigned long long*/ int INFINITY = -1;
 
 /**
  * Returns the lowest value.
@@ -37,10 +41,6 @@ int maxInt(int val1, int val2) {
     if (val1 >= val2)
         return val1;
     else return val2;
-}
-
-void printNumber(int i) {
-    printf("%d", i);
 }
 
 // RB Tree for ranking
@@ -101,8 +101,8 @@ rankingNode *search(rankingNode *T, /*unsigned long long*/ int key) {
 void printInOrder(rankingNode *subTree) {
     if (subTree->left != treeNil)
         printInOrder(subTree->left);
-    printNumber(subTree->graphId);
-    putc(' ', stdout);
+    lastRankingShot[count] = subTree->graphId;
+    count++;
     if (subTree->right != treeNil)
         printInOrder(subTree->right);
 }
@@ -137,10 +137,26 @@ rankingNode *maxNode(rankingNode *subTree) {
  * @return the next node
  */
 rankingNode *successor(rankingNode *startNode) {
-    if (startNode != treeNil)
+    if (startNode->right != treeNil)
         return minNode(startNode->right);
     rankingNode *father = startNode->father;
     while (father != treeNil && startNode == father->right) {
+        startNode = father;
+        father = father->father;
+    }
+    return father;
+}
+
+/**
+ * Returns the node with the highest key value that is lower than the node passed as parameter.
+ * @param startNode the node to use as reference
+ * @return the next node
+ */
+rankingNode *predecessor(rankingNode *startNode) {
+    if (startNode->left != treeNil)
+        return minNode(startNode->left);
+    rankingNode *father = startNode->father;
+    while (father != treeNil && startNode == father->left) {
         startNode = father;
         father = father->father;
     }
@@ -443,7 +459,7 @@ void fibHeapLink(heapNode *child, heapNode *parent) {
         child->leftSibling = parent->child->leftSibling;
         parent->child->leftSibling->rightSibling = child;
         parent->child->leftSibling = child;
-        if (child->key != INFINITY && child->key < parent->child->key)
+        if (parent->child->key == INFINITY || child->key < parent->child->key)
             parent->child = child;
     }
     parent->degree++;
@@ -454,12 +470,12 @@ void fibHeapLink(heapNode *child, heapNode *parent) {
  * Calculates the integer part of log2(n) + 1.
  */
 int calculateDegree(int n) {
-    int count = 0;
+    int degreeCount = 1;
     while (n > 0) {
         n = n / 2;
-        count++;
+        degreeCount++;
     }
-    return count;
+    return degreeCount;
 }
 
 /**
@@ -481,7 +497,7 @@ void consolidate(fibonacciHeap *H) {
         iterator = iterator->rightSibling;
     } while (iterator != H->min);
     do {
-        if (iterator->visited != true) {
+        if (!iterator->visited) {
             iterator = iterator->rightSibling;
             continue;
         }
@@ -489,7 +505,7 @@ void consolidate(fibonacciHeap *H) {
         tempDegree = iterator->degree;
         while (A[tempDegree] != /*heapNil*/ NULL) {
             heapNode *y = A[tempDegree];
-            if (y->key != INFINITY && iterator->key > y->key) {
+            if (iterator->key == INFINITY || (y->key != INFINITY && iterator->key > y->key)) {
                 heapNode *temp = iterator;
                 iterator = y;
                 y = temp;
@@ -515,7 +531,7 @@ void consolidate(fibonacciHeap *H) {
                 A[i]->rightSibling = H->min;
                 A[i]->leftSibling = H->min->leftSibling;
                 H->min->leftSibling = A[i];
-                if (A[i]->key != INFINITY && A[i]->key < H->min->key) {
+                if (H->min->key == INFINITY || A[i]->key < H->min->key) {
                     H->min = A[i];
                 }
             }
@@ -533,17 +549,17 @@ heapNode *fibHeapExtractMin(fibonacciHeap *H) {
     if (minNode != /*heapNil*/ NULL) {
         if (minNode->child != /*heapNil*/ NULL) {
             // takes min node children out of the min child list to put them on the root list of H
-            heapNode *childList = minNode->child;
-            while (minNode->degree != 0) {
-                minNode->degree--;
-                heapNode *nodeToTakeOut = childList->rightSibling;
-                nodeToTakeOut->parent = /*heapNil*/ NULL;
-                nodeToTakeOut->leftSibling->rightSibling = nodeToTakeOut->rightSibling;
-                nodeToTakeOut->rightSibling->leftSibling = nodeToTakeOut->leftSibling;
-                nodeToTakeOut->leftSibling = minNode->rightSibling;
-                minNode->leftSibling->rightSibling = nodeToTakeOut;
-                nodeToTakeOut->rightSibling = minNode;
-                minNode->leftSibling = nodeToTakeOut;
+            heapNode *childHead = minNode->child;
+            heapNode *childTail = childHead->leftSibling;
+            heapNode *oldTail = minNode->leftSibling;
+            childTail->rightSibling = minNode;
+            minNode->leftSibling = childTail;
+            childHead->leftSibling = oldTail;
+            oldTail->rightSibling = childHead;
+            heapNode *iterator = childHead;
+            while (iterator != minNode) {
+                iterator->parent = NULL;
+                iterator = iterator->rightSibling;
             }
             minNode->child = /*heapNil*/ NULL;
         }
@@ -625,20 +641,6 @@ void fibHeapDecreaseKey(fibonacciHeap *H, heapNode *nodeToDecrease, /*unsigned l
     }
 }
 
-void
-fibHeapFindNodeAndDecreaseKey(fibonacciHeap *H, heapNode *startNode, int graph, /*unsigned long long*/ int newKey) {
-    /*if (H->min == NULL) return;*/
-    startNode->visited = true;
-    if (startNode->graphNode == graph) {
-        fibHeapDecreaseKey(H, startNode, newKey);
-    } else if (startNode->child != /*heapNil*/ NULL) {
-        fibHeapFindNodeAndDecreaseKey(H, startNode->child, graph, newKey);
-    } else if (!startNode->rightSibling->visited) {
-        fibHeapFindNodeAndDecreaseKey(H, startNode->rightSibling, graph, newKey);
-    }
-    startNode->visited = false;
-}
-
 /**
  * Deletes the specified node from the heap.
  * @param H the fibonacci Heap
@@ -653,25 +655,24 @@ void deleteNode(fibonacciHeap *H, heapNode *toDelete) {
 //----------------------------------------------------------------------------------------------------------------------
 
 void addGraphIntoRanking(int graphToAdd, /*unsigned long long*/ int result) {
-    if (search(treeRoot, result) != treeNil) {
-        return;
-    }
     if (actualRankingSize == rankingLength) {
         if (result > worstMetricValue) {
             return;
         } else {
             rankingNode *max = maxNode(treeRoot);
-            if (max->father != treeNil)
-                worstMetricValue = max->father->key;
+            worstMetricValue = predecessor(max)->key;
             RBDelete(max);
-            actualRankingSize--;
         }
     }
+    rankingChanged = true;
     if (result > worstMetricValue)
         worstMetricValue = result;
     rankingNode *newNode = createTreeNode(graphToAdd, result);
     RBInsert(newNode);
-    actualRankingSize++;
+    if (actualRankingSize != rankingLength) {
+        rankingLengthChanged = true;
+        actualRankingSize++;
+    }
 }
 
 // Add graph functions
@@ -682,6 +683,11 @@ void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
                                         int previous[graphDimension]) {
     fibonacciHeap *queue = makeFibHeap();
     /*unsigned long long*/ int temp;
+    bool visited[graphDimension];
+    for (int i = 0; i < graphDimension; i++) {
+        visited[i] = false;
+    }
+    heapNode *nodes[graphDimension];
     distance[0] = 0;
     for (int i = 0; i < graphDimension; i++) {
         if (i != 0)
@@ -691,16 +697,21 @@ void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
         previous[i] = -1;
         heapNode *newNode = fibHeapCreateNode(distance[i], i);
         fibHeapInsert(queue, newNode);
+        nodes[i] = newNode;
     }
     while (queue->min != /*heapNil*/ NULL) {
         heapNode *current = fibHeapExtractMin(queue);
-        for (int i = 0; i < graphDimension; i++) {
-            if (current->graphNode != i && adjacencyMap[current->graphNode][i] != 0) {
-                temp = distance[current->graphNode] + adjacencyMap[current->graphNode][i];
-                if (distance[i] == INFINITY || distance[i] > temp) {
-                    distance[i] = temp;
-                    previous[i] = current->graphNode;
-                    fibHeapFindNodeAndDecreaseKey(queue, queue->min, i, temp);
+        if (current->key != INFINITY) {
+            visited[current->graphNode] = true;
+            for (int i = 0; i < graphDimension; i++) {
+                if (current->graphNode != i && adjacencyMap[current->graphNode][i] != 0) {
+                    temp = distance[current->graphNode] + adjacencyMap[current->graphNode][i];
+                    if (distance[i] == INFINITY || distance[i] > temp) {
+                        distance[i] = temp;
+                        previous[i] = current->graphNode;
+                        if (!visited[i])
+                            fibHeapDecreaseKey(queue, nodes[i], temp);
+                    }
                 }
             }
         }
@@ -749,7 +760,7 @@ void parseNextEdge(/*unsigned long*/ int vertices[]) {
     char numberDigits[11];
     char nextDigit;
     do {
-        nextDigit = (char) getchar();
+        nextDigit = (char) getchar_unlocked();
         if (nextDigit == ',' || nextDigit == '\r' || nextDigit == '\n') {
             numberDigits[insertedDigitsPointer] = '\0';
             vertices[insertedNumbersPointer] = parseInt(numberDigits);
@@ -757,7 +768,7 @@ void parseNextEdge(/*unsigned long*/ int vertices[]) {
             insertedNumbersPointer++;
             if (nextDigit == '\r' || nextDigit == '\n') {
                 if (nextDigit == '\r')
-                    getc(stdin);
+                    getchar_unlocked();
                 return;
             }
         } else if (nextDigit != ' ') {
@@ -789,7 +800,20 @@ void analyzeGraph() {
 void printRanking() {
     if (rankingLength == 0)
         return;
-    printInOrder(treeRoot);
+    if (rankingChanged) {
+        if (rankingLengthChanged) {
+            lastRankingShot = (int *) realloc(lastRankingShot, actualRankingSize * sizeof(int));
+            rankingLengthChanged = false;
+        }
+        count = 0;
+        printInOrder(treeRoot);
+        rankingChanged = false;
+    }
+    for (int i = 0; i <= actualRankingSize - 1; ++i) {
+        printf("%d", lastRankingShot[i]);
+        if (i < actualRankingSize - 1)
+            printf(" ");
+    }
     putc('\n', stdout);
 }
 
@@ -799,11 +823,14 @@ void printRanking() {
 void initialize() {
     char *initialization;
     char *next;
+    int charDim;
     size_t maxDim = 23;
     initialization = malloc(sizeof(char) * maxDim);
-    getline(&initialization, &maxDim, stdin);
-    graphDimension = strtoull(initialization, &next, 10);
-    rankingLength = strtoull(next, NULL, 10);
+    charDim = getline(&initialization, &maxDim, stdin);
+    if (charDim != 0) {
+        graphDimension = strtoull(initialization, &next, 10);
+        rankingLength = strtoull(next, NULL, 10);
+    }
     free(initialization);
 }
 
@@ -812,25 +839,30 @@ void initialize() {
  */
 void inputHandler() {
     char *command;
+    int charDim;
     size_t argumentDim = 15;
     command = malloc(sizeof(char) * argumentDim);
     do {
         command[0] = '\0';
-        getline(&command, &argumentDim, stdin);
+        charDim = getline(&command, &argumentDim, stdin);
         command[strcspn(command, "\n")] = '\0';
         if (!strcmp("AggiungiGrafo", command)) {
             analyzeGraph();
         } else if (!strcmp("TopK", command))
             printRanking();
+        else if (charDim == -1) break;
     } while (strcmp("", command) != 0);
     /*printf("Closing the program...");*/
     free(command);
 }
 
 int main() {
-    setbuf(stdout, NULL);
     /*heapNil = fibHeapCreateNode(0, 0);
     heapNil->child = heapNil*/
+    setbuf(stdout, NULL);
+    rankingChanged = false;
+    rankingLengthChanged = false;
+    lastRankingShot = malloc(sizeof(int));
     treeNil = malloc(sizeof(rankingNode));
     treeNil->graphId = -1;
     treeNil->key = -1;
@@ -843,5 +875,6 @@ int main() {
     inputHandler();
     /*free(heapNil);*/
     free(treeNil);
+    free(lastRankingShot);
     return 0;
 }
