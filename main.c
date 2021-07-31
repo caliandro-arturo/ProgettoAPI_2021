@@ -17,6 +17,8 @@ bool rankChanged;
 bool rankLengthChanged;
 char *nextLine;
 size_t maxLineSize;
+int **adjacencyMap;
+int *distance;
 
 int count = 0;                      //to maintain the count of iterations in recursive functions
 int worstMetricValue = 0;
@@ -601,7 +603,7 @@ void addGraphIntoRank(int graphToAdd, int result) {
  * @param adjacencyMap the adjacency map containing the weights of arcs between the vertices
  * @param distance the array in which distances of vertices from the source vertex are reported
  */
-void dijkstra(int sourceId, int adjacencyMap[][graphDimension], int distance[graphDimension]) {
+void dijkstra(int sourceId) {
     int temp;
     for (int i = 0; i < graphDimension; i++) {
         if (i != sourceId)
@@ -646,7 +648,7 @@ void dijkstra(int sourceId, int adjacencyMap[][graphDimension], int distance[gra
  * @param distance the array containing the distances from the source vertex
  * @return the sum of all the elements into the distance array
  */
-int fromDijkstraToMetric(const int distance[graphDimension]) {
+int fromDijkstraToMetric() {
     int totalDistance = 0;
     for (int i = 0; i < graphDimension; ++i) {
         totalDistance += distance[i];
@@ -659,10 +661,9 @@ int fromDijkstraToMetric(const int distance[graphDimension]) {
  * @param adjacencyMap the adjacency matrix
  * @return the metric value
  */
-int calcGraphMetric(int adjacencyMap[][graphDimension]) {
-    int distance[graphDimension];
-    dijkstra(0, adjacencyMap, distance);
-    return fromDijkstraToMetric(distance);
+int calcGraphMetric() {
+    dijkstra(0);
+    return fromDijkstraToMetric();
 }
 
 //
@@ -725,7 +726,6 @@ void parseNextEdge(int vertices[], int vertexId) {
  * Reads a graph.
  */
 void analyzeGraph() {
-    int adjacencyMap[graphDimension][graphDimension];
     for (int i = 0; i < graphDimension; i++) {
         parseNextEdge(adjacencyMap[i], i);
         if (i == 0) {
@@ -741,7 +741,7 @@ void analyzeGraph() {
             }
         }
     }
-    int result = calcGraphMetric(adjacencyMap);
+    int result = calcGraphMetric();
     addGraphIntoRank(graphIndex, result);
     graphIndex++;
 }
@@ -788,6 +788,11 @@ void initialize() {
         rankLength = strtol(next, NULL, 10);
     }
     /*free(initialization);*/
+    adjacencyMap = (int **) malloc(sizeof(int *) * graphDimension);
+    distance = (int *) malloc(sizeof(int) * graphDimension);
+    for (int i = 0; i < graphDimension; ++i) {
+        adjacencyMap[i] = (int *) malloc(sizeof(int) * graphDimension);
+    }
     maxLineSize = sizeof(char) * (11 * graphDimension + 11 + 3);
     nextLine = (char *) malloc(maxLineSize);
     nodesArray = malloc(sizeof(heapNode *) * graphDimension);
