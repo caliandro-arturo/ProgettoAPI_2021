@@ -15,6 +15,8 @@ int actualRankSize = 0;
 int *lastRankShot;
 bool rankChanged;
 bool rankLengthChanged;
+char *nextLine;
+size_t maxLineSize;
 
 int count = 0;                      //to maintain the count of iterations in recursive functions
 int worstMetricValue = 0;
@@ -52,7 +54,7 @@ int maxInt(int val1, int val2) {
  */
 typedef struct treeNode {
     int graphId;
-    /*unsigned long long*/ int key;
+    int key;
     bool isRed;
     struct treeNode *father;
     struct treeNode *left;
@@ -103,8 +105,11 @@ rankNode *search(rankNode *T, /*unsigned long long*/ int key) {
 void printInOrder(rankNode *subTree) {
     if (subTree->left != treeNil)
         printInOrder(subTree->left);
-    lastRankShot[count] = subTree->graphId;
+    printf("%d", subTree->graphId);
     count++;
+    if (count != actualRankSize)
+        fputc(' ', stdout);
+    else return;
     if (subTree->right != treeNil)
         printInOrder(subTree->right);
 }
@@ -684,34 +689,36 @@ void parseNextEdge(int vertices[], int vertexId) {
     int insertedDigitsPointer = 0;
     char numberDigits[11];
     char nextDigit;
-    do {
-        if (insertedNumbersPointer == 0 || insertedNumbersPointer == vertexId) {
-            do {
-                nextDigit = (char) getchar_unlocked();
-            } while (isdigit(nextDigit));
-            vertices[insertedNumbersPointer] = 0;
+    size_t lineLen;
+    lineLen = getline(&nextLine, &maxLineSize, stdin);
+    for (int i = 0; i < lineLen; i++) {
+        nextDigit = nextLine[i];
+        if (nextDigit == ',' || nextDigit == '\r' || nextDigit == '\n') {
+            numberDigits[insertedDigitsPointer] = '\0';
+            vertices[insertedNumbersPointer] = parseInt(numberDigits);
+            if (nextDigit == '\r' || nextDigit == '\n')
+                return;
             insertedNumbersPointer++;
+            insertedDigitsPointer = 0;
         } else {
-            do {
-                nextDigit = (char) getchar_unlocked();
-                if (!isdigit(nextDigit))
-                    break;
-                else {
+            if (insertedNumbersPointer == 0 || insertedNumbersPointer == vertexId) {
+                i += (int) strcspn(&nextLine[i], ",");
+                vertices[insertedNumbersPointer] = 0;
+                insertedNumbersPointer++;
+            } else {
+                if (insertedDigitsPointer == 0 && nextDigit == '0') {
+                    i++;
+                    vertices[insertedNumbersPointer] = 0;
+                    insertedNumbersPointer++;
+                    if (insertedNumbersPointer == graphDimension)
+                        return;
+                } else {
                     numberDigits[insertedDigitsPointer] = nextDigit;
                     insertedDigitsPointer++;
                 }
-            } while (1);
-            numberDigits[insertedDigitsPointer] = '\0';
-            vertices[insertedNumbersPointer] = parseInt(numberDigits);
-            insertedDigitsPointer = 0;
-            insertedNumbersPointer++;
+            }
         }
-        if (nextDigit == '\r' || nextDigit == '\n') {
-            if (nextDigit == '\r')
-                getchar_unlocked();
-            return;
-        }
-    } while (1);
+    }
 }
 
 /**
@@ -743,11 +750,11 @@ void analyzeGraph() {
  * Prints out the rank.
  */
 void printRank() {
-    if (rankLength == 0) {
+    if (actualRankSize == 0) {
         putc('\n', stdout);
         return;
     }
-    if (rankChanged) {
+    /*if (rankChanged) {
         if (rankLengthChanged) {
             lastRankShot = (int *) realloc(lastRankShot, actualRankSize * sizeof(int));
             rankLengthChanged = false;
@@ -760,7 +767,9 @@ void printRank() {
         printf("%d", lastRankShot[i]);
         if (i < actualRankSize - 1)
             printf(" ");
-    }
+    }*/
+    printInOrder(treeRoot);
+    count = 0;
     putc('\n', stdout);
 }
 
@@ -779,6 +788,8 @@ void initialize() {
         rankLength = strtol(next, NULL, 10);
     }
     /*free(initialization);*/
+    maxLineSize = sizeof(char) * (11 * graphDimension + 11 + 3);
+    nextLine = (char *) malloc(maxLineSize);
     nodesArray = malloc(sizeof(heapNode *) * graphDimension);
     for (int i = 0; i <= graphDimension; ++i) {
         if (i == 0)
@@ -797,16 +808,18 @@ void initialize() {
  */
 void inputHandler() {
     char *command;
+    size_t cmdLen;
     size_t argumentDim = 15;
     command = malloc(sizeof(char) * argumentDim);
     do {
         command[0] = '\0';
-        (void) getline(&command, &argumentDim, stdin);
+        cmdLen = getline(&command, &argumentDim, stdin);
         if (command[0] == 'A') {
-            analyzeGraph();
+            if (worstMetricValue != 0 || actualRankSize != rankLength)
+                analyzeGraph();
         } else if (command[0] == 'T')
             printRank();
-    } while (command[0] != '\0');
+    } while (cmdLen != -1);
     free(command);
 }
 
@@ -814,7 +827,7 @@ int main() {
     setbuf(stdout, NULL);
     rankChanged = false;
     rankLengthChanged = false;
-    lastRankShot = malloc(sizeof(int));
+    /*lastRankShot = malloc(sizeof(int));*/
     treeNil = malloc(sizeof(rankNode));
     treeNil->graphId = -1;
     treeNil->key = -1;
