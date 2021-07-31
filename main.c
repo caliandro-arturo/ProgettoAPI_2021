@@ -10,15 +10,16 @@
 #include <ctype.h>
 
 int graphDimension;
-int rankingLength;
-int actualRankingSize = 0;
-int *lastRankingShot;
-bool rankingChanged;
-bool rankingLengthChanged;
+int rankLength;
+int actualRankSize = 0;
+int *lastRankShot;
+bool rankChanged;
+bool rankLengthChanged;
+
 int count = 0;                      //to maintain the count of iterations in recursive functions
-/*unsigned long long*/ int worstMetricValue = 0;
+int worstMetricValue = 0;
 int graphIndex = 0;
-const /*unsigned long long*/ int INFINITY = -1;
+const int INFINITY = -1;
 
 /**
  * Returns the lowest value.
@@ -44,10 +45,10 @@ int maxInt(int val1, int val2) {
     else return val2;
 }
 
-// RB Tree for ranking
+// RB Tree for rank
 //----------------------------------------------------------------------------------------------------------------------
 /**
- * Node struct for RB tree implementation for ranking.
+ * Node struct for RB tree implementation for rank.
  */
 typedef struct treeNode {
     int graphId;
@@ -56,7 +57,7 @@ typedef struct treeNode {
     struct treeNode *father;
     struct treeNode *left;
     struct treeNode *right;
-} rankingNode;
+} rankNode;
 
 /*typedef struct {
     int *outGoingStar;
@@ -69,17 +70,17 @@ typedef struct treeNode {
 /**
  * Node that represents a null value.
  */
-rankingNode *treeNil;
+rankNode *treeNil;
 /**
- * Node that represents the treeRoot of the ranking tree.
+ * Node that represents the treeRoot of the rank tree.
  */
-rankingNode *treeRoot;
+rankNode *treeRoot;
 
 /**
  *
  */
-rankingNode *createTreeNode(int graph, /*unsigned long long*/ int result) {
-    rankingNode *newNode = malloc(sizeof(rankingNode));
+rankNode *createTreeNode(int graph, /*unsigned long long*/ int result) {
+    rankNode *newNode = malloc(sizeof(rankNode));
     newNode->graphId = graph;
     newNode->key = result;
     newNode->isRed = false;
@@ -91,7 +92,7 @@ rankingNode *createTreeNode(int graph, /*unsigned long long*/ int result) {
  * @param T the father to consider to do the research
  * @param key the value that identifies the searched node
  */
-rankingNode *search(rankingNode *T, /*unsigned long long*/ int key) {
+rankNode *search(rankNode *T, /*unsigned long long*/ int key) {
     if (T == treeNil || T->key == key)
         return T;
     else if (T->key < key)
@@ -99,10 +100,10 @@ rankingNode *search(rankingNode *T, /*unsigned long long*/ int key) {
     else return search(T->left, key);
 }
 
-void printInOrder(rankingNode *subTree) {
+void printInOrder(rankNode *subTree) {
     if (subTree->left != treeNil)
         printInOrder(subTree->left);
-    lastRankingShot[count] = subTree->graphId;
+    lastRankShot[count] = subTree->graphId;
     count++;
     if (subTree->right != treeNil)
         printInOrder(subTree->right);
@@ -113,8 +114,8 @@ void printInOrder(rankingNode *subTree) {
  * @param subTree the treeRoot of the sub tree to use to start the research
  * @return the the node with the lowest key in the sub tree
  */
-rankingNode *minNode(rankingNode *subTree) {
-    rankingNode *current = subTree;
+rankNode *minNode(rankNode *subTree) {
+    rankNode *current = subTree;
     while (current->left != treeNil)
         current = current->left;
     return current;
@@ -125,8 +126,8 @@ rankingNode *minNode(rankingNode *subTree) {
  * @param subTree the treeRoot of the sub tree to use to start the research
  * @return the the node with the highest key in the sub tree
  */
-rankingNode *maxNode(rankingNode *subTree) {
-    rankingNode *current = subTree;
+rankNode *maxNode(rankNode *subTree) {
+    rankNode *current = subTree;
     while (current->right != treeNil)
         current = current->right;
     return current;
@@ -137,10 +138,10 @@ rankingNode *maxNode(rankingNode *subTree) {
  * @param startNode the node to use as reference
  * @return the next node
  */
-rankingNode *successor(rankingNode *startNode) {
+rankNode *successor(rankNode *startNode) {
     if (startNode->right != treeNil)
         return minNode(startNode->right);
-    rankingNode *father = startNode->father;
+    rankNode *father = startNode->father;
     while (father != treeNil && startNode == father->right) {
         startNode = father;
         father = father->father;
@@ -153,10 +154,10 @@ rankingNode *successor(rankingNode *startNode) {
  * @param startNode the node to use as reference
  * @return the next node
  */
-rankingNode *predecessor(rankingNode *startNode) {
+rankNode *predecessor(rankNode *startNode) {
     if (startNode->left != treeNil)
         return minNode(startNode->left);
-    rankingNode *father = startNode->father;
+    rankNode *father = startNode->father;
     while (father != treeNil && startNode == father->left) {
         startNode = father;
         father = father->father;
@@ -169,8 +170,8 @@ rankingNode *predecessor(rankingNode *startNode) {
  * The son becomes the father of the node, and the node becomes his left son.
  * @param toRotate the father
  */
-void leftRotate(rankingNode *toRotate) {
-    rankingNode *rightSon = toRotate->right;
+void leftRotate(rankNode *toRotate) {
+    rankNode *rightSon = toRotate->right;
     toRotate->right = rightSon->left;
     if (rightSon->left != treeNil)
         rightSon->left->father = toRotate;
@@ -189,8 +190,8 @@ void leftRotate(rankingNode *toRotate) {
  * The son becomes the father of the node, and the node becomes his right son.
  * @param toRotate the father
  */
-void rightRotate(rankingNode *toRotate) {
-    rankingNode *leftSon = toRotate->left;
+void rightRotate(rankNode *toRotate) {
+    rankNode *leftSon = toRotate->left;
     toRotate->left = leftSon->right;
     if (leftSon->right != treeNil)
         leftSon->right->father = toRotate;
@@ -208,9 +209,9 @@ void rightRotate(rankingNode *toRotate) {
  * Fixes the RB Tree property after the specified node has been inserted.
  * @param newNode the new node added into the tree
  */
-void RBInsertFixup(rankingNode *newNode) {
+void RBInsertFixup(rankNode *newNode) {
     while (newNode != treeRoot && newNode->father->isRed) {
-        rankingNode *newNodeUncle;
+        rankNode *newNodeUncle;
         if (newNode->father == newNode->father->father->left) {
             newNodeUncle = newNode->father->father->right;
             if (newNodeUncle->isRed) {
@@ -253,9 +254,9 @@ void RBInsertFixup(rankingNode *newNode) {
  * Inserts a new node inside the RB Tree.
  * @param toInsert the node to add
  */
-void RBInsert(rankingNode *toInsert) {
-    rankingNode *previousNode = treeNil;
-    rankingNode *currentNode = treeRoot;
+void RBInsert(rankNode *toInsert) {
+    rankNode *previousNode = treeNil;
+    rankNode *currentNode = treeRoot;
     while (currentNode != treeNil) {
         previousNode = currentNode;
         if (toInsert->key < currentNode->key)
@@ -278,8 +279,8 @@ void RBInsert(rankingNode *toInsert) {
  * Auxiliary function that fixes the RB tree after a deletion of a node, if the the deleted node was black.
  * @param x the node that has taken the place of the old removed node
  */
-void RBDeleteFixup(rankingNode *x) {
-    rankingNode *w;
+void RBDeleteFixup(rankNode *x) {
+    rankNode *w;
     while (x != treeRoot && !x->isRed) {
         if (x == x->father->left) {
             w = x->father->right;
@@ -338,8 +339,8 @@ void RBDeleteFixup(rankingNode *x) {
  * Removes a node from the RB Tree.
  * @param node the node to remove
  */
-void RBDelete(rankingNode *node) {
-    rankingNode *toDelete, *subTree;
+void RBDelete(rankNode *node) {
+    rankNode *toDelete, *subTree;
     if (node->left == treeNil || node->right == treeNil)
         toDelete = node;
     else toDelete = successor(node);
@@ -364,379 +365,298 @@ void RBDelete(rankingNode *node) {
     free(toDelete);
 }
 
-// Fibonacci heap to optimize Dijkstra's algorithm
+// Binary heap to optimize Dijkstra's algorithm
 //----------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Representation of an heap node
+ */
 typedef struct heap_node {
-    /*unsigned long long*/ int key;
-    int graphNode;
-    int degree;
-    struct heap_node *leftSibling;
-    struct heap_node *rightSibling;
-    struct heap_node *parent;
-    struct heap_node *child;
-    bool mark;
+    /**
+     * the current calculated distance from the node 0. It is set by default to INFINITY, if the node id is != 0
+     */
+    int dist;
+    /**
+     * the identifier of the node
+     */
+    int vertexId;
+    /**
+     * an auxiliary boolean to check if the node key has to be increased or not
+     */
     bool visited;
 } heapNode;
 
 /**
- * A representation of the NULL value for the heap. I know it's not mandatory, but it's to maintain consistency between
- * the heap and the RB tree implementation.
+ * Creates a node that can be put into the heap.
+ * @param dist the current distance from the node 0
+ * @param vertexId the number of the vertex
+ * @return a pointer to an heap node
  */
-/*heapNode *heapNil;*/
-
-typedef struct fibonacci_heap {
-    int n;              // number of nodes contained in the heap
-    heapNode *min;      // the node with the minimum key
-} fibonacciHeap;
-
-/**
- * Creates a fibonacci Heap.
- * @return a new empty fibonacci Heap
- */
-fibonacciHeap *makeFibHeap() {
-    fibonacciHeap *H;
-    H = (fibonacciHeap *) malloc(sizeof(fibonacciHeap));
-    H->n = 0;
-    H->min = /*heapNil*/ NULL;
-    return H;
-}
-
-/**
- * Creates a node with the specified key as attribute.
- * @param value the key to use as value
- * @param graphNode the graph node index
- * @return a new node containing the indicated key
- */
-heapNode *fibHeapCreateNode(/*unsigned long long*/ int value, int graphNode) {
-    heapNode *newNode = (heapNode *) malloc(sizeof(heapNode));
-    newNode->key = value;
-    newNode->graphNode = graphNode;
-    newNode->degree = 0;
-    newNode->parent = /*heapNil*/ NULL;
-    newNode->child = /*heapNil*/ NULL;
-    newNode->leftSibling = newNode;
-    newNode->rightSibling = newNode;
-    newNode->mark = false;
+heapNode *createHeapNode(int dist, int vertexId) {
+    heapNode *newNode = malloc(sizeof(heapNode));
+    newNode->dist = dist;
+    newNode->vertexId = vertexId;
     newNode->visited = false;
     return newNode;
 }
 
 /**
- * Inserts a newNode node into the heap.
- * @param H the fibonacci heap
- * @param newNode the node to add
+ * Representation of the heap
  */
-void fibHeapInsert(fibonacciHeap *H, heapNode *newNode) {
-    if (H->min != /*heapNil*/ NULL) {
-        //adds the new node to the root list
-        H->min->leftSibling->rightSibling = newNode;
-        newNode->rightSibling = H->min;
-        newNode->leftSibling = H->min->leftSibling;
-        H->min->leftSibling = newNode;
-        if (newNode->key != INFINITY && newNode->key < H->min->key)
-            H->min = newNode;
-    } else
-        H->min = newNode;
-    H->n++;
+typedef struct {
+    /**
+     * the heap array, with nodes
+     */
+    heapNode **nodes;
+    /**
+     * an array that tracks the current position of vertices into the heap
+     */
+    int *position;
+    /**
+     * the current allocated memory for the heap
+     */
+    int length;
+    /**
+     * the current number of elements into the heap
+     */
+    int heapSize;
+} heap;
+
+heap *binHeap;
+heapNode **nodesArray;
+
+/**
+ * Finds the parent of a node.
+ * @param i the index of the son
+ * @return the index of the parent
+ */
+int parent(int i) {
+    return i >> 1;
 }
 
 /**
- * Removes a child from the parent child list and adds it to the parent root list.
- * @param child the child to insert into H root list
- * @param parent the parent of the child
+ * Finds the left son.
+ * @param i the index of the parent
+ * @return the index of the left son
  */
-void fibHeapLink(heapNode *child, heapNode *parent) {
-    // removes the child from the H root list
-    child->rightSibling->leftSibling = child->leftSibling;
-    child->leftSibling->rightSibling = child->rightSibling;
-    child->leftSibling = child;
-    child->rightSibling = child;
-    child->parent = parent;
-    if (parent->child == /*heapNil*/ NULL)
-        parent->child = child;
-    else {
-        child->rightSibling = parent->child;
-        child->leftSibling = parent->child->leftSibling;
-        parent->child->leftSibling->rightSibling = child;
-        parent->child->leftSibling = child;
-        if (parent->child->key == INFINITY || child->key < parent->child->key)
-            parent->child = child;
-    }
-    parent->degree++;
-    child->mark = false;
+int left(int i) {
+    return i << 1;
 }
 
 /**
- * Calculates the integer part of log2(n) + 1.
+ * Finds the right son.
+ * @param i the index of the parent
+ * @return the index of the right son
  */
-int calculateDegree(int n) {
-    int degreeCount = 1;
-    while (n > 0) {
-        n = n / 2;
-        degreeCount++;
-    }
-    return degreeCount;
+int right(int i) {
+    return (i << 1) + 1;
 }
 
 /**
- * Consolidates the heap.
- * @param H the fibonacci Heap to consolidate
+ * Turns the heap array into a correct heap.
+ * @param H the heap
+ * @param i an auxiliary index used for recursion
  */
-void consolidate(fibonacciHeap *H) {
-    int degree = calculateDegree(H->n);
-    heapNode *A[degree];
-    for (int i = 0; i < degree; i++) {
-        A[i] = /*heapNil*/ NULL;
-    }
-    int tempDegree;
-    heapNode *iterator = H->min;
-    int hRootListCounter = 0;
-    do {
-        iterator->visited = true;
-        hRootListCounter++;
-        iterator = iterator->rightSibling;
-    } while (iterator != H->min);
-    do {
-        if (!iterator->visited) {
-            iterator = iterator->rightSibling;
-            continue;
-        }
-        iterator->visited = false;
-        tempDegree = iterator->degree;
-        while (A[tempDegree] != /*heapNil*/ NULL) {
-            heapNode *y = A[tempDegree];
-            if (iterator->key == INFINITY || (y->key != INFINITY && iterator->key > y->key)) {
-                heapNode *temp = iterator;
-                iterator = y;
-                y = temp;
-            }
-            fibHeapLink(y, iterator);
-            A[tempDegree] = /*heapNil*/ NULL;
-            tempDegree++;
-        }
-        A[tempDegree] = iterator;
-        hRootListCounter--;
-        iterator = iterator->rightSibling;
-    } while (hRootListCounter > 0);
-    H->min = /*heapNil*/ NULL;
-    for (int i = 0; i < degree; i++) {
-        if (A[i] != /*heapNil*/ NULL) {
-            // adds A[i] to the H root list
-            A[i]->leftSibling = A[i];
-            A[i]->rightSibling = A[i];
-            if (H->min == /*heapNil*/ NULL) {
-                H->min = A[i];
-            } else {
-                H->min->leftSibling->rightSibling = A[i];
-                A[i]->rightSibling = H->min;
-                A[i]->leftSibling = H->min->leftSibling;
-                H->min->leftSibling = A[i];
-                if (H->min->key == INFINITY || A[i]->key < H->min->key) {
-                    H->min = A[i];
-                }
-            }
-        }
+void heapify(heap *H, int i) {
+    int l = left(i);
+    int r = right(i);
+    int smallest;
+    if (l <= H->heapSize && H->nodes[l]->dist != INFINITY &&
+        (H->nodes[i]->dist == INFINITY || H->nodes[l]->dist < H->nodes[i]->dist))
+        smallest = l;
+    else smallest = i;
+    if (r <= H->heapSize && H->nodes[r]->dist != INFINITY &&
+        (H->nodes[smallest]->dist == INFINITY || H->nodes[r]->dist < H->nodes[smallest]->dist))
+        smallest = r;
+    if (smallest != i) {
+        heapNode *temp = H->nodes[i];
+        H->nodes[i] = H->nodes[smallest];
+        H->nodes[smallest] = temp;
+        H->position[smallest] = i;
+        H->position[i] = smallest;
+        heapify(H, smallest);
     }
 }
 
 /**
- * Returns and remove the min node.
- * @param H the fibonacci Heap
- * @return the minimum node
+ * Builds an heap.
+ * @param nodes the array of nodes to put into the heap
+ * @param len the size of the allocated memory for the heap array
+ * @param heapSize the number of nodes into the heap array
+ * @return the built heap
  */
-heapNode *fibHeapExtractMin(fibonacciHeap *H) {
-    heapNode *minNode = H->min;
-    if (minNode != /*heapNil*/ NULL) {
-        if (minNode->child != /*heapNil*/ NULL) {
-            // takes min node children out of the min child list to put them on the root list of H
-            heapNode *childHead = minNode->child;
-            heapNode *childTail = childHead->leftSibling;
-            heapNode *oldTail = minNode->leftSibling;
-            childTail->rightSibling = minNode;
-            minNode->leftSibling = childTail;
-            childHead->leftSibling = oldTail;
-            oldTail->rightSibling = childHead;
-            heapNode *iterator = childHead;
-            while (iterator != minNode) {
-                iterator->parent = NULL;
-                iterator = iterator->rightSibling;
-            }
-            minNode->child = /*heapNil*/ NULL;
-        }
-        // removes the min node from the H root list
-        minNode->leftSibling->rightSibling = minNode->rightSibling;
-        minNode->rightSibling->leftSibling = minNode->leftSibling;
-        if (minNode == minNode->rightSibling)
-            H->min = /*heapNil*/ NULL;
-        else {
-            H->min = minNode->rightSibling;
-            consolidate(H);
-        }
-        H->n--;
+heap *buildHeap(heapNode **nodes, int len, int heapSize) {
+    heap *H = (heap *) malloc(sizeof(heap));
+    H->nodes = nodes;
+    H->length = len;
+    H->heapSize = heapSize;
+    for (int i = heapSize >> 1; i >= 1; ++i) {
+        heapify(H, i);
     }
-    return minNode;
+    return H;
 }
 
-/**
- * Subtracts the node to decrease from the parent child list and puts it into the H root list.
- * @param H the fibonacci heap
- * @param nodeToDecrease the node to add to the H root list
- * @param parent the parent of the node to decrease
- */
-void cut(fibonacciHeap *H, heapNode *nodeToDecrease, heapNode *parent) {
-    if (nodeToDecrease == nodeToDecrease->rightSibling)
-        parent->child = /*heapNil*/ NULL;
-    nodeToDecrease->leftSibling->rightSibling = nodeToDecrease->rightSibling;
-    nodeToDecrease->rightSibling->leftSibling = nodeToDecrease->leftSibling;
-    if (nodeToDecrease == parent->child)
-        parent->child = nodeToDecrease->rightSibling;
-    parent->degree--;
-    nodeToDecrease->leftSibling = nodeToDecrease;
-    nodeToDecrease->rightSibling = nodeToDecrease;
-    H->min->leftSibling->rightSibling = nodeToDecrease;
-    nodeToDecrease->rightSibling = H->min;
-    nodeToDecrease->leftSibling = H->min->leftSibling;
-    H->min->leftSibling = nodeToDecrease;
-    nodeToDecrease->parent = /*heapNil*/ NULL;
-    nodeToDecrease->mark = false;
-}
-
-/**
- * Applies recursively the cut function to parent's children.
- * @param H the fibonacci Heap
- * @param parent the parent of the children to cut
- */
-void cascadingCut(fibonacciHeap *H, heapNode *parent) {
-    heapNode *grandparent;
-    grandparent = parent->parent;
-    if (grandparent != /*heapNil*/ NULL) {
-        if (parent->mark == false) {
-            parent->mark = true;
-        } else {
-            cut(H, parent, grandparent);
-            cascadingCut(H, grandparent);
-        }
+void heapsort(heap *H) {
+    for (int i = H->length; i >= 2; ++i) {
+        heapNode *temp = H->nodes[1];
+        H->nodes[1] = H->nodes[i];
+        H->nodes[i] = temp;
+        H->heapSize--;
+        heapify(H, 1);
     }
 }
 
 /**
- * Substitutes the key of the specified node with the specified new key value.
- * @param H the fibonacci heap
- * @param nodeToDecrease the node to change
- * @param newKey the new value of the key
+ * Extracts the node with the minimum value of `dist` from the heap.
+ * @param H the heap
+ * @return the root
  */
-void fibHeapDecreaseKey(fibonacciHeap *H, heapNode *nodeToDecrease, /*unsigned long long*/ int newKey) {
-    if (nodeToDecrease == /*heapNil*/ NULL) {
-        /*printf("Node is not in the heap");*/
-        return;
-    }
-    nodeToDecrease->key = newKey;
-    heapNode *parentNode = nodeToDecrease->parent;
-    if ((parentNode != /*heapNil*/ NULL) && (parentNode->key == INFINITY || nodeToDecrease->key < parentNode->key)) {
-        cut(H, nodeToDecrease, parentNode);
-        cascadingCut(H, parentNode);
-    }
-    if (H->min->key == INFINITY || nodeToDecrease->key < H->min->key) {
-        H->min = nodeToDecrease;
-    }
+heapNode *heapExtractMin(heap *H) {
+    if (H->heapSize < 1)
+        return NULL;
+    heapNode *min = H->nodes[1];
+    H->nodes[1] = H->nodes[H->heapSize];
+    H->position[H->nodes[1]->vertexId] = 1;
+    H->heapSize--;
+    heapify(H, 1);
+    return min;
 }
 
 /**
- * Deletes the specified node from the heap.
- * @param H the fibonacci Heap
- * @param toDelete the node to delete
+ * Inserts a node into the heap.
+ * @param H the heap
+ * @param toInsert the node to insert
  */
-void deleteNode(fibonacciHeap *H, heapNode *toDelete) {
-    fibHeapDecreaseKey(H, toDelete, -5);    // -5 represents -inf, it is used to set the node as min
-    fibHeapExtractMin(H);
+void heapInsert(heap *H, heapNode *toInsert) {
+    H->heapSize++;
+    int i = H->heapSize;
+    while (i > 1 && toInsert->dist != INFINITY &&
+           (H->nodes[parent(i)]->dist == INFINITY || H->nodes[parent(i)]->dist > toInsert->dist)) {
+        H->nodes[i] = H->nodes[parent(i)];
+        H->position[H->nodes[i]->vertexId] = i;
+        i = parent(i);
+    }
+    H->nodes[i] = toInsert;
+    H->position[toInsert->vertexId] = i;
 }
 
-// Ranking functions
+/**
+ * Retrains the specified node into the heap.
+ * @param H the heap
+ * @param vertexId the id of the node to retrain
+ */
+void heapDecreaseKey(heap *H, int vertexId) {
+    int i = H->position[vertexId];
+    while (i > 1 && H->nodes[i]->dist != INFINITY &&
+           (H->nodes[parent(i)]->dist == INFINITY || H->nodes[i]->dist < H->nodes[parent(i)]->dist)) {
+        H->position[H->nodes[i]->vertexId] = parent(i);
+        H->position[H->nodes[parent(i)]->vertexId] = i;
+        heapNode *temp = H->nodes[i];
+        H->nodes[i] = H->nodes[parent(i)];
+        H->nodes[parent(i)] = temp;
+        i = parent(i);
+    }
+}
+
+// Rank functions
 //----------------------------------------------------------------------------------------------------------------------
 
-void addGraphIntoRanking(int graphToAdd, /*unsigned long long*/ int result) {
-    if (actualRankingSize == rankingLength) {
+/**
+ * Adds the graph into the rank, if there is space for it.
+ * @param graphToAdd the id of the graph
+ * @param result the result of the metric of the graph
+ */
+void addGraphIntoRank(int graphToAdd, int result) {
+    if (actualRankSize == rankLength) {
         if (result >= worstMetricValue) {
             return;
         } else {
-            rankingNode *max = maxNode(treeRoot);
+            rankNode *max = maxNode(treeRoot);
             worstMetricValue = predecessor(max)->key;
             RBDelete(max);
         }
     }
-    rankingChanged = true;
+    rankChanged = true;
     if (result > worstMetricValue)
         worstMetricValue = result;
-    rankingNode *newNode = createTreeNode(graphToAdd, result);
+    rankNode *newNode = createTreeNode(graphToAdd, result);
     RBInsert(newNode);
-    if (actualRankingSize != rankingLength) {
-        rankingLengthChanged = true;
-        actualRankingSize++;
+    if (actualRankSize != rankLength) {
+        rankLengthChanged = true;
+        actualRankSize++;
     }
 }
 
 // Add graph functions
 //----------------------------------------------------------------------------------------------------------------------
 
-void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
-        /*unsigned long long*/ int distance[graphDimension],
-                                        int previous[graphDimension]) {
-    fibonacciHeap *queue = makeFibHeap();
-    /*unsigned long long*/ int temp;
-    bool visited[graphDimension];
+/**
+ * Calculates the shortest paths from a specified node to all the other vertices.
+ * @param sourceId the initial vertex
+ * @param adjacencyMap the adjacency map containing the weights of arcs between the vertices
+ * @param distance the array in which distances of vertices from the source vertex are reported
+ */
+void dijkstra(int sourceId, int adjacencyMap[][graphDimension], int distance[graphDimension]) {
+    int temp;
     for (int i = 0; i < graphDimension; i++) {
-        visited[i] = false;
-    }
-    heapNode *nodes[graphDimension];
-    distance[0] = 0;
-    for (int i = 0; i < graphDimension; i++) {
-        if (i != 0)
+        if (i != sourceId)
             distance[i] = INFINITY;
         else
-            distance[i] = 0;
-        previous[i] = -1;
-        heapNode *newNode = fibHeapCreateNode(distance[i], i);
-        fibHeapInsert(queue, newNode);
-        nodes[i] = newNode;
+            distance[sourceId] = 0;
     }
-    while (queue->min != /*heapNil*/ NULL) {
-        heapNode *current = fibHeapExtractMin(queue);
-        if (current->key != INFINITY) {
-            visited[current->graphNode] = true;
+    for (int i = 0; i < graphDimension; i++)
+        heapInsert(binHeap, nodesArray[i]);
+    while (binHeap->heapSize != 0) {
+        heapNode *current = heapExtractMin(binHeap);
+        if (current->dist != INFINITY) {
+            current->visited = true;
             for (int i = 0; i < graphDimension; i++) {
-                if (current->graphNode != i && adjacencyMap[current->graphNode][i] != 0) {
-                    temp = distance[current->graphNode] + adjacencyMap[current->graphNode][i];
+                if (current->vertexId != i && adjacencyMap[current->vertexId][i] != 0) {
+                    temp = distance[current->vertexId] + adjacencyMap[current->vertexId][i];
                     if (distance[i] == INFINITY || distance[i] > temp) {
                         distance[i] = temp;
-                        previous[i] = current->graphNode;
-                        if (!visited[i])
-                            fibHeapDecreaseKey(queue, nodes[i], temp);
+                        if (!nodesArray[i]->visited) {
+                            nodesArray[i]->dist = temp;
+                            heapDecreaseKey(binHeap, nodesArray[i]->vertexId);
+                        }
                     }
                 }
             }
         }
-        free(current);
     }
+    if (binHeap->heapSize > 0)
+        binHeap->heapSize = 0;
     for (int i = 0; i < graphDimension; i++) {
         if (distance[i] == INFINITY)
             distance[i] = 0;
+        if (i != sourceId) {
+            nodesArray[i]->dist = INFINITY;
+        }
+        nodesArray[i]->visited = false;
     }
-    free(queue);
 }
 
-/*unsigned long long*/ int fromDijkstraToMetric(const /*unsigned long long*/ int distance[graphDimension]) {
-    /*unsigned long long*/ int totalDistance = 0;
-    for (int i = 1; i < graphDimension; ++i) {
+/**
+ * Sums up all the distances.
+ * @param distance the array containing the distances from the source vertex
+ * @return the sum of all the elements into the distance array
+ */
+int fromDijkstraToMetric(const int distance[graphDimension]) {
+    int totalDistance = 0;
+    for (int i = 0; i < graphDimension; ++i) {
         totalDistance += distance[i];
     }
     return totalDistance;
 }
 
-/*unsigned long long*/ int calcGraphMetric(/*unsigned long*/ int adjacencyMap[][graphDimension]) {
-    /*unsigned long long*/ int distance[graphDimension];
-    int previous[graphDimension];
-    dijkstraFromZero(adjacencyMap, distance, previous);
+/**
+ * Calculates the metric of a graph.
+ * @param adjacencyMap the adjacency matrix
+ * @return the metric value
+ */
+int calcGraphMetric(int adjacencyMap[][graphDimension]) {
+    int distance[graphDimension];
+    dijkstra(0, adjacencyMap, distance);
     return fromDijkstraToMetric(distance);
 }
 
@@ -747,7 +667,7 @@ void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
  * @param number the char array that contains digits
  * @return the number contained in the array, as an integer
  */
-/*unsigned long*/ int parseInt(const char *number) {
+int parseInt(const char *number) {
     int value = 0;
     for (int i = 0; i < strlen(number); i++) {
         value = 10 * value + (number[i] - 48);
@@ -759,7 +679,7 @@ void dijkstraFromZero(/*unsigned long*/ int adjacencyMap[][graphDimension],
  * Parse the next edge and adds weights into the array passed as parameter.
  * @param vertices the array in which to put weights
  */
-void parseNextEdge(/*unsigned long*/ int vertices[], int vertexId) {
+void parseNextEdge(int vertices[], int vertexId) {
     int insertedNumbersPointer = 0;
     int insertedDigitsPointer = 0;
     char numberDigits[11];
@@ -798,8 +718,7 @@ void parseNextEdge(/*unsigned long*/ int vertices[], int vertexId) {
  * Reads a graph.
  */
 void analyzeGraph() {
-    /*printf("I should parse a graph here\n");*/
-    /*unsigned long*/ int adjacencyMap[graphDimension][graphDimension];
+    int adjacencyMap[graphDimension][graphDimension];
     for (int i = 0; i < graphDimension; i++) {
         parseNextEdge(adjacencyMap[i], i);
         if (i == 0) {
@@ -809,56 +728,68 @@ void analyzeGraph() {
                     zeroNodeIsDisconnected = false;
             }
             if (zeroNodeIsDisconnected) {
-                addGraphIntoRanking(graphIndex, 0);
+                addGraphIntoRank(graphIndex, 0);
                 graphIndex++;
                 return;
             }
         }
     }
-    /*unsigned long long*/ int result = calcGraphMetric(adjacencyMap);
-    /*printf("\nThe sum of shortest paths is: %llu\n\n", result);*/
-    addGraphIntoRanking(graphIndex, result);
+    int result = calcGraphMetric(adjacencyMap);
+    addGraphIntoRank(graphIndex, result);
     graphIndex++;
 }
 
 /**
- * Prints out the ranking.
+ * Prints out the rank.
  */
-void printRanking() {
-    if (rankingLength == 0)
+void printRank() {
+    if (rankLength == 0) {
+        putc('\n', stdout);
         return;
-    if (rankingChanged) {
-        if (rankingLengthChanged) {
-            lastRankingShot = (int *) realloc(lastRankingShot, actualRankingSize * sizeof(int));
-            rankingLengthChanged = false;
+    }
+    if (rankChanged) {
+        if (rankLengthChanged) {
+            lastRankShot = (int *) realloc(lastRankShot, actualRankSize * sizeof(int));
+            rankLengthChanged = false;
         }
         count = 0;
         printInOrder(treeRoot);
-        rankingChanged = false;
+        rankChanged = false;
     }
-    for (int i = 0; i <= actualRankingSize - 1; ++i) {
-        printf("%d", lastRankingShot[i]);
-        if (i < actualRankingSize - 1)
+    for (int i = 0; i <= actualRankSize - 1; ++i) {
+        printf("%d", lastRankShot[i]);
+        if (i < actualRankSize - 1)
             printf(" ");
     }
     putc('\n', stdout);
 }
 
 /**
- * Initializes the program, setting dimension of graphs to classify and length of the ranking.
+ * Initializes the program.
  */
 void initialize() {
     char *initialization;
     char *next;
-    int charDim;
+    size_t charDim;
     size_t maxDim = 23;
     initialization = malloc(sizeof(char) * maxDim);
     charDim = getline(&initialization, &maxDim, stdin);
-    if (charDim != 0) {
+    if (charDim) {
         graphDimension = strtol(initialization, &next, 10);
-        rankingLength = strtol(next, NULL, 10);
+        rankLength = strtol(next, NULL, 10);
     }
-    free(initialization);
+    /*free(initialization);*/
+    nodesArray = malloc(sizeof(heapNode *) * graphDimension);
+    for (int i = 0; i <= graphDimension; ++i) {
+        if (i == 0)
+            nodesArray[0] = createHeapNode(0, 0);
+        else
+            nodesArray[i] = createHeapNode(INFINITY, i);
+
+    }
+    heapNode **nodes = malloc(sizeof(heapNode *) * graphDimension + 1);
+    binHeap = buildHeap(nodes, graphDimension, 0);
+    binHeap->position = malloc(sizeof(int) * graphDimension + 1);
 }
 
 /**
@@ -866,35 +797,25 @@ void initialize() {
  */
 void inputHandler() {
     char *command;
-    int charDim;
     size_t argumentDim = 15;
     command = malloc(sizeof(char) * argumentDim);
     do {
         command[0] = '\0';
-        charDim = (int) getline(&command, &argumentDim, stdin);
-        charDim--;
-        command[charDim] = '\0';
-        charDim--;
-        if (command[charDim] == '\r')
-            command[charDim] = '\0';
-        if (!strcmp("AggiungiGrafo", command)) {
+        (void) getline(&command, &argumentDim, stdin);
+        if (command[0] == 'A') {
             analyzeGraph();
-        } else if (!strcmp("TopK", command))
-            printRanking();
-        else if (charDim == -1) break;
-    } while (strcmp("", command) != 0);
-    /*printf("Closing the program...");*/
+        } else if (command[0] == 'T')
+            printRank();
+    } while (command[0] != '\0');
     free(command);
 }
 
 int main() {
-    /*heapNil = fibHeapCreateNode(0, 0);
-    heapNil->child = heapNil*/
     setbuf(stdout, NULL);
-    rankingChanged = false;
-    rankingLengthChanged = false;
-    lastRankingShot = malloc(sizeof(int));
-    treeNil = malloc(sizeof(rankingNode));
+    rankChanged = false;
+    rankLengthChanged = false;
+    lastRankShot = malloc(sizeof(int));
+    treeNil = malloc(sizeof(rankNode));
     treeNil->graphId = -1;
     treeNil->key = -1;
     treeNil->father = treeNil;
@@ -904,8 +825,7 @@ int main() {
     treeRoot = treeNil;
     initialize();
     inputHandler();
-    /*free(heapNil);*/
-    free(treeNil);
-    free(lastRankingShot);
+    /*free(treeNil);
+    free(lastRankShot);*/
     return 0;
 }
