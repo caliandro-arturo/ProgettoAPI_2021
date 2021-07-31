@@ -686,35 +686,35 @@ int parseInt(const char *number) {
  */
 void parseNextEdge(int vertices[], int vertexId) {
     int insertedNumbersPointer = 0;
-    int insertedDigitsPointer = 0;
-    char numberDigits[11];
+    bool isFirstDigit = true;
+    int number = 0;
     char nextDigit;
     size_t lineLen;
     lineLen = getline(&nextLine, &maxLineSize, stdin);
     for (int i = 0; i < lineLen; i++) {
         nextDigit = nextLine[i];
         if (nextDigit == ',' || nextDigit == '\r' || nextDigit == '\n') {
-            numberDigits[insertedDigitsPointer] = '\0';
-            vertices[insertedNumbersPointer] = parseInt(numberDigits);
+            vertices[insertedNumbersPointer] = number;
             if (nextDigit == '\r' || nextDigit == '\n')
                 return;
             insertedNumbersPointer++;
-            insertedDigitsPointer = 0;
+            isFirstDigit = true;
+            number = 0;
         } else {
             if (insertedNumbersPointer == 0 || insertedNumbersPointer == vertexId) {
                 i += (int) strcspn(&nextLine[i], ",");
                 vertices[insertedNumbersPointer] = 0;
                 insertedNumbersPointer++;
             } else {
-                if (insertedDigitsPointer == 0 && nextDigit == '0') {
+                if (isFirstDigit && nextDigit == '0') {
                     i++;
                     vertices[insertedNumbersPointer] = 0;
                     insertedNumbersPointer++;
                     if (insertedNumbersPointer == graphDimension)
                         return;
                 } else {
-                    numberDigits[insertedDigitsPointer] = nextDigit;
-                    insertedDigitsPointer++;
+                    number = number * 10 + nextDigit - 48;
+                    isFirstDigit = false;
                 }
             }
         }
