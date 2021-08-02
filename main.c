@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
+#define MAXLEN 280000
 
 int graphDimension;
 int rankLength;
@@ -16,6 +17,7 @@ int *lastRankShot;
 bool rankChanged;
 bool rankLengthChanged;
 char *nextLine;
+char outBuffer[MAXLEN];
 size_t maxLineSize;
 int **adjacencyMap;
 unsigned int *distance;
@@ -40,12 +42,17 @@ typedef struct {
 rankHeap *rank;
 
 void printRankHeap(rankHeap *H) {
+    unsigned int currentPositionPointer = 0;
+    size_t numberLength;
     for (int i = 1; i <= H->heapSize; i++) {
-        fputs(H->rankArray[i]->graphId, stdout);
+        numberLength = strlen(H->rankArray[i]->graphId);
+        memcpy(&outBuffer[currentPositionPointer], H->rankArray[i]->graphId, numberLength);
+        currentPositionPointer += numberLength;
         if (i < H->heapSize)
-            fputs(" ", stdout);
+            outBuffer[currentPositionPointer++] = ' ';
     }
-    fputs("\n", stdout);
+    memcpy(&outBuffer[currentPositionPointer], "\n\0", 2);
+    fputs(outBuffer, stdout);
 }
 
 rankNode *createRankNode(int id, unsigned int key) {
@@ -566,7 +573,7 @@ void inputHandler() {
 }
 
 int main() {
-    /*setbuf(stdout, NULL);*/
+    setbuf(stdout, NULL);
     initialize();
     inputHandler();
     return 0;
