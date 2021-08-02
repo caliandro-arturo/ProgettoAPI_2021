@@ -19,418 +19,51 @@ char *nextLine;
 size_t maxLineSize;
 int **adjacencyMap;
 int *distance;
-
-int count = 0;                      //to maintain the count of iterations in recursive functions
-int worstMetricValue = 0;
 int graphIndex = 0;
 const int INFINITY = -1;
 
-/**
- * Returns the lowest value.
- * @param val1 the first value
- * @param val2 the second value
- * @return the lowest value
- */
-int minInt(int val1, int val2) {
-    if (val1 <= val2)
-        return val1;
-    else return val2;
-}
-
-/**
- * Returns the higher value.
- * @param val1 the first value
- * @param val2 the second value
- * @return the higher value
- */
-int maxInt(int val1, int val2) {
-    if (val1 >= val2)
-        return val1;
-    else return val2;
-}
-
-// RB Tree for rank
+// Max heap for rank
 //----------------------------------------------------------------------------------------------------------------------
 /**
  * Node struct for RB tree implementation for rank.
  */
-typedef struct treeNode {
-    int graphId;
+typedef struct {
+    char *graphId;
     int key;
-    bool isRed;
-    struct treeNode *father;
-    struct treeNode *left;
-    struct treeNode *right;
 } rankNode;
 
-/*typedef struct {
-    int *outGoingStar;
-} graphNode;*/
-
-/*typedef struct {
-    int id;
-} graph;*/
-
-/**
- * Node that represents a null value.
- */
-rankNode *treeNil;
-/**
- * Node that represents the treeRoot of the rank tree.
- */
-rankNode *treeRoot;
-
-/**
- *
- */
-rankNode *createTreeNode(int graph, /*unsigned long long*/ int result) {
-    rankNode *newNode = malloc(sizeof(rankNode));
-    newNode->graphId = graph;
-    newNode->key = result;
-    newNode->isRed = false;
-    return newNode;
-}
-
-/**
- * Returns the node containing the required key.
- * @param T the father to consider to do the research
- * @param key the value that identifies the searched node
- */
-rankNode *search(rankNode *T, /*unsigned long long*/ int key) {
-    if (T == treeNil || T->key == key)
-        return T;
-    else if (T->key < key)
-        return search(T->right, key);
-    else return search(T->left, key);
-}
-
-void printInOrder(rankNode *subTree) {
-    if (subTree->left != treeNil)
-        printInOrder(subTree->left);
-    printf("%d", subTree->graphId);
-    count++;
-    if (count != actualRankSize)
-        fputc(' ', stdout);
-    else return;
-    if (subTree->right != treeNil)
-        printInOrder(subTree->right);
-}
-
-/**
- * Returns the node with the lowest key, starting from a specified node.
- * @param subTree the treeRoot of the sub tree to use to start the research
- * @return the the node with the lowest key in the sub tree
- */
-rankNode *minNode(rankNode *subTree) {
-    rankNode *current = subTree;
-    while (current->left != treeNil)
-        current = current->left;
-    return current;
-}
-
-/**
- * Returns the node with the highest key, starting from a specified node.
- * @param subTree the treeRoot of the sub tree to use to start the research
- * @return the the node with the highest key in the sub tree
- */
-rankNode *maxNode(rankNode *subTree) {
-    rankNode *current = subTree;
-    while (current->right != treeNil)
-        current = current->right;
-    return current;
-}
-
-/**
- * Returns the node with the lowest key value that is higher than the node passed as parameter.
- * @param startNode the node to use as reference
- * @return the next node
- */
-rankNode *successor(rankNode *startNode) {
-    if (startNode->right != treeNil)
-        return minNode(startNode->right);
-    rankNode *father = startNode->father;
-    while (father != treeNil && startNode == father->right) {
-        startNode = father;
-        father = father->father;
-    }
-    return father;
-}
-
-/**
- * Returns the node with the highest key value that is lower than the node passed as parameter.
- * @param startNode the node to use as reference
- * @return the next node
- */
-rankNode *predecessor(rankNode *startNode) {
-    if (startNode->left != treeNil)
-        return minNode(startNode->left);
-    rankNode *father = startNode->father;
-    while (father != treeNil && startNode == father->left) {
-        startNode = father;
-        father = father->father;
-    }
-    return father;
-}
-
-/**
- * Applies a counterclockwise rotation between a node and his right son.
- * The son becomes the father of the node, and the node becomes his left son.
- * @param toRotate the father
- */
-void leftRotate(rankNode *toRotate) {
-    rankNode *rightSon = toRotate->right;
-    toRotate->right = rightSon->left;
-    if (rightSon->left != treeNil)
-        rightSon->left->father = toRotate;
-    rightSon->father = toRotate->father;
-    if (toRotate->father == treeNil)
-        treeRoot = rightSon;
-    else if (toRotate == toRotate->father->left)
-        toRotate->father->left = rightSon;
-    else toRotate->father->right = rightSon;
-    rightSon->left = toRotate;
-    toRotate->father = rightSon;
-}
-
-/**
- * Applies a clockwise rotation between a node and his left son.
- * The son becomes the father of the node, and the node becomes his right son.
- * @param toRotate the father
- */
-void rightRotate(rankNode *toRotate) {
-    rankNode *leftSon = toRotate->left;
-    toRotate->left = leftSon->right;
-    if (leftSon->right != treeNil)
-        leftSon->right->father = toRotate;
-    leftSon->father = toRotate->father;
-    if (toRotate->father == treeNil)
-        treeRoot = leftSon;
-    else if (toRotate == toRotate->father->right)
-        toRotate->father->right = leftSon;
-    else toRotate->father->left = leftSon;
-    leftSon->right = toRotate;
-    toRotate->father = leftSon;
-}
-
-/**
- * Fixes the RB Tree property after the specified node has been inserted.
- * @param newNode the new node added into the tree
- */
-void RBInsertFixup(rankNode *newNode) {
-    while (newNode != treeRoot && newNode->father->isRed) {
-        rankNode *newNodeUncle;
-        if (newNode->father == newNode->father->father->left) {
-            newNodeUncle = newNode->father->father->right;
-            if (newNodeUncle->isRed) {
-                newNode->father->isRed = false;
-                newNodeUncle->isRed = false;
-                newNode->father->father->isRed = true;
-                newNode = newNode->father->father;
-            } else {
-                if (newNode == newNode->father->right) {
-                    newNode = newNode->father;
-                    leftRotate(newNode);
-                }
-                newNode->father->isRed = false;
-                newNode->father->father->isRed = true;
-                rightRotate(newNode->father->father);
-            }
-        } else {
-            newNodeUncle = newNode->father->father->left;
-            if (newNodeUncle->isRed) {
-                newNode->father->isRed = false;
-                newNodeUncle->isRed = false;
-                newNode->father->father->isRed = true;
-                newNode = newNode->father->father;
-            } else {
-                if (newNode == newNode->father->left) {
-                    newNode = newNode->father;
-                    rightRotate(newNode);
-                }
-                newNode->father->isRed = false;
-                newNode->father->father->isRed = true;
-                leftRotate(newNode->father->father);
-            }
-        }
-    }
-    /* treeRoot must always be black */
-    treeRoot->isRed = false;
-}
-
-/**
- * Inserts a new node inside the RB Tree.
- * @param toInsert the node to add
- */
-void RBInsert(rankNode *toInsert) {
-    rankNode *previousNode = treeNil;
-    rankNode *currentNode = treeRoot;
-    while (currentNode != treeNil) {
-        previousNode = currentNode;
-        if (toInsert->key < currentNode->key)
-            currentNode = currentNode->left;
-        else currentNode = currentNode->right;
-    }
-    toInsert->father = previousNode;
-    if (previousNode == treeNil)
-        treeRoot = toInsert;
-    else if (toInsert->key < previousNode->key)
-        previousNode->left = toInsert;
-    else previousNode->right = toInsert;
-    toInsert->left = treeNil;
-    toInsert->right = treeNil;
-    toInsert->isRed = true;
-    RBInsertFixup(toInsert);
-}
-
-/**
- * Auxiliary function that fixes the RB tree after a deletion of a node, if the the deleted node was black.
- * @param x the node that has taken the place of the old removed node
- */
-void RBDeleteFixup(rankNode *x) {
-    rankNode *w;
-    while (x != treeRoot && !x->isRed) {
-        if (x == x->father->left) {
-            w = x->father->right;
-            if (w->isRed) {
-                w->isRed = false;
-                x->father->isRed = true;
-                leftRotate(x->father);
-                w = x->father->right;
-            }
-            if (!w->left->isRed && !w->right->isRed) {
-                w->isRed = true;
-                x = x->father;
-            } else {
-                if (!w->right->isRed) {
-                    w->left->isRed = false;
-                    w->isRed = true;
-                    rightRotate(w);
-                    w = x->father->right;
-                }
-                w->isRed = x->father->isRed;
-                x->father->isRed = false;
-                w->right->isRed = false;
-                leftRotate(x->father);
-                x = treeRoot;
-            }
-        } else {
-            w = x->father->left;
-            if (w->isRed) {
-                w->isRed = false;
-                x->father->isRed = true;
-                rightRotate(x->father);
-                w = x->father->left;
-            }
-            if (!w->right->isRed && !w->left->isRed) {
-                w->isRed = true;
-                x = x->father;
-            } else {
-                if (!w->left->isRed) {
-                    w->right->isRed = false;
-                    w->isRed = true;
-                    leftRotate(w);
-                    w = x->father->left;
-                }
-                w->isRed = x->father->isRed;
-                x->father->isRed = false;
-                w->left->isRed = false;
-                rightRotate(x->father);
-                x = treeRoot;
-            }
-        }
-    }
-    x->isRed = false;
-}
-
-/**
- * Removes a node from the RB Tree.
- * @param node the node to remove
- */
-void RBDelete(rankNode *node) {
-    rankNode *toDelete, *subTree;
-    if (node->left == treeNil || node->right == treeNil)
-        toDelete = node;
-    else toDelete = successor(node);
-    if (toDelete->left != treeNil)
-        subTree = toDelete->left;
-    else subTree = toDelete->right;
-    subTree->father = toDelete->father;
-    if (toDelete->father == treeNil)
-        treeRoot = node;
-    else {
-        if (toDelete->father->left == toDelete)
-            toDelete->father->left = subTree;
-        else
-            toDelete->father->right = subTree;
-    }
-    if (toDelete != node) {
-        node->key = toDelete->key;
-        node->graphId = toDelete->graphId;
-    }
-    if (!toDelete->isRed)
-        RBDeleteFixup(subTree);
-    free(toDelete);
-}
-
-// Binary heap to optimize Dijkstra's algorithm
-//----------------------------------------------------------------------------------------------------------------------
-
-/**
- * Representation of an heap node
- */
-typedef struct heap_node {
-    /**
-     * the current calculated distance from the node 0. It is set by default to INFINITY, if the node id is != 0
-     */
-    int dist;
-    /**
-     * the identifier of the node
-     */
-    int vertexId;
-    /**
-     * an auxiliary boolean to check if the node key has to be increased or not
-     */
-    bool visited;
-} heapNode;
-
-/**
- * Creates a node that can be put into the heap.
- * @param dist the current distance from the node 0
- * @param vertexId the number of the vertex
- * @return a pointer to an heap node
- */
-heapNode *createHeapNode(int dist, int vertexId) {
-    heapNode *newNode = malloc(sizeof(heapNode));
-    newNode->dist = dist;
-    newNode->vertexId = vertexId;
-    newNode->visited = false;
-    return newNode;
-}
-
-/**
- * Representation of the heap
- */
 typedef struct {
-    /**
-     * the heap array, with nodes
-     */
-    heapNode **nodes;
-    /**
-     * an array that tracks the current position of vertices into the heap
-     */
-    int *position;
-    /**
-     * the current allocated memory for the heap
-     */
-    int length;
-    /**
-     * the current number of elements into the heap
-     */
+    rankNode **rankArray;
     int heapSize;
-} heap;
+} rankHeap;
 
-heap *binHeap;
-heapNode **nodesArray;
+rankHeap *rank;
+
+void printRankHeap(rankHeap *H) {
+    for (int i = 1; i <= H->heapSize; i++) {
+        fputs(H->rankArray[i]->graphId, stdout);
+        if (i < H->heapSize)
+            fputs(" ", stdout);
+    }
+    fputs("\n", stdout);
+}
+
+rankNode *createRankNode(int id, int key) {
+    rankNode *newNode = malloc(sizeof(rankNode));
+    newNode->key = key;
+    char buf[12], *p = buf + 10;
+    buf[11] = '\0';
+    int numLen = 1;
+    do {
+        numLen++;
+        p--;
+        *p = id % 10 + '0';
+        id /= 10;
+    } while (id);
+    newNode->graphId = malloc(sizeof(char) * numLen);
+    memcpy(newNode->graphId, p, numLen);
+    return newNode;
+}
 
 /**
  * Finds the parent of a node.
@@ -459,6 +92,116 @@ int right(int i) {
     return (i << 1) + 1;
 }
 
+void swap(rankHeap *H, int pos1, int pos2) {
+    rankNode *temp = H->rankArray[pos1];
+    H->rankArray[pos1] = H->rankArray[pos2];
+    H->rankArray[pos2] = temp;
+}
+
+void rankHeapify(rankHeap *H, int i) {
+    int l = left(i);
+    int r = right(i);
+    int largest;
+    if (l <= H->heapSize && H->rankArray[l]->key > H->rankArray[i]->key)
+        largest = l;
+    else
+        largest = i;
+    if (r <= H->heapSize && H->rankArray[r]->key > H->rankArray[largest]->key)
+        largest = r;
+    if (largest != i) {
+        swap(H, i, largest);
+        rankHeapify(H, largest);
+    }
+}
+
+void rankHeapRemoveMax(rankHeap *H) {
+    if (H->heapSize == 0)
+        return;
+    rankNode *max = H->rankArray[1];
+    H->rankArray[1] = H->rankArray[H->heapSize];
+    H->heapSize--;
+    rankHeapify(H, 1);
+    free(max);
+}
+
+void rankHeapInsert(rankHeap *H, rankNode *toInsert) {
+    H->heapSize++;
+    int i = H->heapSize;
+    int key = toInsert->key;
+    while (i > 1 && H->rankArray[parent(i)]->key < key) {
+        H->rankArray[i] = H->rankArray[parent(i)];
+        i = parent(i);
+    }
+    H->rankArray[i] = toInsert;
+}
+
+// Binary heap to optimize Dijkstra's algorithm
+//----------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Representation of an heap node
+ */
+typedef struct heap_node {
+    /**
+     * the current calculated distance from the node 0. It is set by default to INFINITY, if the node id is != 0
+     */
+    int dist;
+    /**
+     * the identifier of the node
+     */
+    int vertexId;
+    /**
+     * an auxiliary boolean to check if the node key has to be increased or not
+     */
+    bool visited;
+    bool inserted;
+} heapNode;
+
+/**
+ * Creates a node that can be put into the heap.
+ * @param dist the current distance from the node 0
+ * @param vertexId the number of the vertex
+ * @return a pointer to an heap node
+ */
+heapNode *createHeapNode(int dist, int vertexId) {
+    heapNode *newNode = malloc(sizeof(heapNode));
+    newNode->dist = dist;
+    newNode->vertexId = vertexId;
+    newNode->visited = false;
+    newNode->inserted = false;
+    return newNode;
+}
+
+/**
+ * Representation of the heap
+ */
+typedef struct {
+    /**
+     * the heap array, with nodes
+     */
+    heapNode **nodes;
+    /**
+     * an array that tracks the current position of vertices into the heap
+     */
+    int *position;
+    /**
+     * the current allocated memory for the heap
+     */
+    int length;
+    /**
+     * the current number of elements into the heap
+     */
+    int heapSize;
+} heap;
+
+heap *binHeap;
+heapNode **nodesArray;
+
+/*void check(int i) {
+    if (binHeap->nodes[i]->vertexId != binHeap->nodes[binHeap->position[binHeap->nodes[i]->vertexId]]->vertexId)
+        printf("error");
+}*/
+
 /**
  * Turns the heap array into a correct heap.
  * @param H the heap
@@ -479,8 +222,10 @@ void heapify(heap *H, int i) {
         heapNode *temp = H->nodes[i];
         H->nodes[i] = H->nodes[smallest];
         H->nodes[smallest] = temp;
-        H->position[smallest] = i;
-        H->position[i] = smallest;
+        H->position[H->nodes[i]->vertexId] = i;
+        H->position[H->nodes[smallest]->vertexId] = smallest;
+        /*check(i);
+        check(smallest);*/
         heapify(H, smallest);
     }
 }
@@ -541,10 +286,13 @@ void heapInsert(heap *H, heapNode *toInsert) {
            (H->nodes[parent(i)]->dist == INFINITY || H->nodes[parent(i)]->dist > toInsert->dist)) {
         H->nodes[i] = H->nodes[parent(i)];
         H->position[H->nodes[i]->vertexId] = i;
+        /*check(i);*/
         i = parent(i);
     }
     H->nodes[i] = toInsert;
     H->position[toInsert->vertexId] = i;
+    /*check(i);*/
+    toInsert->inserted = true;
 }
 
 /**
@@ -561,6 +309,8 @@ void heapDecreaseKey(heap *H, int vertexId) {
         heapNode *temp = H->nodes[i];
         H->nodes[i] = H->nodes[parent(i)];
         H->nodes[parent(i)] = temp;
+        /*check(i);
+        check(parent(i));*/
         i = parent(i);
     }
 }
@@ -575,21 +325,15 @@ void heapDecreaseKey(heap *H, int vertexId) {
  */
 void addGraphIntoRank(int graphToAdd, int result) {
     if (actualRankSize == rankLength) {
-        if (result >= worstMetricValue) {
+        if (result >= rank->rankArray[1]->key) {
             return;
         } else {
-            rankNode *max = maxNode(treeRoot);
-            worstMetricValue = predecessor(max)->key;
-            RBDelete(max);
+            rankHeapRemoveMax(rank);
         }
     }
-    rankChanged = true;
-    if (result > worstMetricValue)
-        worstMetricValue = result;
-    rankNode *newNode = createTreeNode(graphToAdd, result);
-    RBInsert(newNode);
+    rankNode *newNode = createRankNode(graphToAdd, result);
+    rankHeapInsert(rank, newNode);
     if (actualRankSize != rankLength) {
-        rankLengthChanged = true;
         actualRankSize++;
     }
 }
@@ -611,8 +355,7 @@ void dijkstra(int sourceId) {
         else
             distance[sourceId] = 0;
     }
-    for (int i = 0; i < graphDimension; i++)
-        heapInsert(binHeap, nodesArray[i]);
+    heapInsert(binHeap, nodesArray[0]);
     while (binHeap->heapSize != 0) {
         heapNode *current = heapExtractMin(binHeap);
         if (current->dist != INFINITY) {
@@ -624,7 +367,11 @@ void dijkstra(int sourceId) {
                         distance[i] = temp;
                         if (!nodesArray[i]->visited) {
                             nodesArray[i]->dist = temp;
-                            heapDecreaseKey(binHeap, nodesArray[i]->vertexId);
+                            if (!nodesArray[i]->inserted) {
+                                heapInsert(binHeap, nodesArray[i]);
+                            } else {
+                                heapDecreaseKey(binHeap, nodesArray[i]->vertexId);
+                            }
                         }
                     }
                 }
@@ -640,6 +387,7 @@ void dijkstra(int sourceId) {
             nodesArray[i]->dist = INFINITY;
         }
         nodesArray[i]->visited = false;
+        nodesArray[i]->inserted = false;
     }
 }
 
@@ -681,10 +429,14 @@ int parseInt(const char *number) {
     return value;
 }
 
+
 /**
  * Parse the next edge and adds weights into the array passed as parameter.
  * @param vertices the array in which to put weights
  */
+int graphWeightNumber = 0;
+bool allTheWeightsAreEquals = true;
+
 void parseNextEdge(int vertices[], int vertexId) {
     int insertedNumbersPointer = 0;
     bool isFirstDigit = true;
@@ -696,6 +448,8 @@ void parseNextEdge(int vertices[], int vertexId) {
         nextDigit = nextLine[i];
         if (nextDigit == ',' || nextDigit == '\r' || nextDigit == '\n') {
             vertices[insertedNumbersPointer] = number;
+            if (allTheWeightsAreEquals)
+                allTheWeightsAreEquals = graphWeightNumber == number;
             if (nextDigit == '\r' || nextDigit == '\n')
                 return;
             insertedNumbersPointer++;
@@ -703,13 +457,21 @@ void parseNextEdge(int vertices[], int vertexId) {
             number = 0;
         } else {
             if (insertedNumbersPointer == 0 || insertedNumbersPointer == vertexId) {
-                i += (int) strcspn(&nextLine[i], ",");
+                if (vertexId == 0) {
+                    while (nextLine[i] != ',' && nextLine[i] != '\r' && nextLine[i] != '\n') {
+                        graphWeightNumber = graphWeightNumber * 10 + nextLine[i] - 48;
+                        i++;
+                    }
+                } else
+                    i += (int) strcspn(&nextLine[i], ",");
                 vertices[insertedNumbersPointer] = 0;
                 insertedNumbersPointer++;
             } else {
                 if (isFirstDigit && nextDigit == '0') {
                     i++;
                     vertices[insertedNumbersPointer] = 0;
+                    if (allTheWeightsAreEquals)
+                        allTheWeightsAreEquals = graphWeightNumber == 0;
                     insertedNumbersPointer++;
                     if (insertedNumbersPointer == graphDimension)
                         return;
@@ -741,8 +503,13 @@ void analyzeGraph() {
             }
         }
     }
-    int result = calcGraphMetric();
-    addGraphIntoRank(graphIndex, result);
+    if (allTheWeightsAreEquals) {
+        addGraphIntoRank(graphIndex, graphWeightNumber * (graphDimension - 1));
+    } else {
+        addGraphIntoRank(graphIndex, calcGraphMetric());
+    }
+    allTheWeightsAreEquals = true;
+    graphWeightNumber = 0;
     graphIndex++;
 }
 
@@ -750,27 +517,7 @@ void analyzeGraph() {
  * Prints out the rank.
  */
 void printRank() {
-    if (actualRankSize == 0) {
-        putc('\n', stdout);
-        return;
-    }
-    /*if (rankChanged) {
-        if (rankLengthChanged) {
-            lastRankShot = (int *) realloc(lastRankShot, actualRankSize * sizeof(int));
-            rankLengthChanged = false;
-        }
-        count = 0;
-        printInOrder(treeRoot);
-        rankChanged = false;
-    }
-    for (int i = 0; i <= actualRankSize - 1; ++i) {
-        printf("%d", lastRankShot[i]);
-        if (i < actualRankSize - 1)
-            printf(" ");
-    }*/
-    printInOrder(treeRoot);
-    count = 0;
-    putc('\n', stdout);
+    printRankHeap(rank);
 }
 
 /**
@@ -788,6 +535,8 @@ void initialize() {
         rankLength = strtol(next, NULL, 10);
     }
     /*free(initialization);*/
+    rank = malloc(sizeof(rankHeap));
+    rank->rankArray = malloc(sizeof(rankNode *) * rankLength + 1);
     adjacencyMap = (int **) malloc(sizeof(int *) * graphDimension);
     distance = (int *) malloc(sizeof(int) * graphDimension);
     for (int i = 0; i < graphDimension; ++i) {
@@ -820,7 +569,7 @@ void inputHandler() {
         command[0] = '\0';
         cmdLen = getline(&command, &argumentDim, stdin);
         if (command[0] == 'A') {
-            if (worstMetricValue != 0 || actualRankSize != rankLength)
+            if (rank->heapSize != rankLength || (rank->heapSize > 0 && rank->rankArray[1]->key > 0))
                 analyzeGraph();
         } else if (command[0] == 'T')
             printRank();
@@ -830,17 +579,6 @@ void inputHandler() {
 
 int main() {
     setbuf(stdout, NULL);
-    rankChanged = false;
-    rankLengthChanged = false;
-    /*lastRankShot = malloc(sizeof(int));*/
-    treeNil = malloc(sizeof(rankNode));
-    treeNil->graphId = -1;
-    treeNil->key = -1;
-    treeNil->father = treeNil;
-    treeNil->left = treeNil;
-    treeNil->right = treeNil;
-    treeNil->isRed = false;
-    treeRoot = treeNil;
     initialize();
     inputHandler();
     /*free(treeNil);
