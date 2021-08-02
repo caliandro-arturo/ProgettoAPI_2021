@@ -18,7 +18,7 @@ bool rankLengthChanged;
 char *nextLine;
 size_t maxLineSize;
 int **adjacencyMap;
-int *distance;
+unsigned int *distance;
 int graphIndex = 0;
 const int INFINITY = -1;
 
@@ -48,7 +48,7 @@ void printRankHeap(rankHeap *H) {
     fputs("\n", stdout);
 }
 
-rankNode *createRankNode(int id, int key) {
+rankNode *createRankNode(int id, unsigned int key) {
     rankNode *newNode = malloc(sizeof(rankNode));
     newNode->key = key;
     char buf[12], *p = buf + 10;
@@ -323,7 +323,7 @@ void heapDecreaseKey(heap *H, int vertexId) {
  * @param graphToAdd the id of the graph
  * @param result the result of the metric of the graph
  */
-void addGraphIntoRank(int graphToAdd, int result) {
+void addGraphIntoRank(int graphToAdd, unsigned int result) {
     if (actualRankSize == rankLength) {
         if (result >= rank->rankArray[1]->key) {
             return;
@@ -396,8 +396,8 @@ void dijkstra(int sourceId) {
  * @param distance the array containing the distances from the source vertex
  * @return the sum of all the elements into the distance array
  */
-int fromDijkstraToMetric() {
-    int totalDistance = 0;
+unsigned int fromDijkstraToMetric() {
+    unsigned int totalDistance = 0;
     for (int i = 0; i < graphDimension; ++i) {
         totalDistance += distance[i];
     }
@@ -409,26 +409,13 @@ int fromDijkstraToMetric() {
  * @param adjacencyMap the adjacency matrix
  * @return the metric value
  */
-int calcGraphMetric() {
+unsigned int calcGraphMetric() {
     dijkstra(0);
     return fromDijkstraToMetric();
 }
 
 //
 //----------------------------------------------------------------------------------------------------------------------
-/**
- * Parse a string array containing digits and returns the
- * @param number the char array that contains digits
- * @return the number contained in the array, as an integer
- */
-int parseInt(const char *number) {
-    int value = 0;
-    for (int i = 0; i < strlen(number); i++) {
-        value = 10 * value + (number[i] - 48);
-    }
-    return value;
-}
-
 
 /**
  * Parse the next edge and adds weights into the array passed as parameter.
@@ -538,7 +525,7 @@ void initialize() {
     rank = malloc(sizeof(rankHeap));
     rank->rankArray = malloc(sizeof(rankNode *) * rankLength + 1);
     adjacencyMap = (int **) malloc(sizeof(int *) * graphDimension);
-    distance = (int *) malloc(sizeof(int) * graphDimension);
+    distance = (unsigned int *) malloc(sizeof(unsigned int) * graphDimension);
     for (int i = 0; i < graphDimension; ++i) {
         adjacencyMap[i] = (int *) malloc(sizeof(int) * graphDimension);
     }
@@ -571,17 +558,16 @@ void inputHandler() {
         if (command[0] == 'A') {
             if (rank->heapSize != rankLength || (rank->heapSize > 0 && rank->rankArray[1]->key > 0))
                 analyzeGraph();
-        } else if (command[0] == 'T')
+        } else if (command[0] == 'T') {
             printRank();
+        }
     } while (cmdLen != -1);
     free(command);
 }
 
 int main() {
-    setbuf(stdout, NULL);
+    /*setbuf(stdout, NULL);*/
     initialize();
     inputHandler();
-    /*free(treeNil);
-    free(lastRankShot);*/
     return 0;
 }
